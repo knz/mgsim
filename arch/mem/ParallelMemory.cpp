@@ -28,6 +28,9 @@ class ParallelMemory::Port : public Object
     Process             p_Requests;
     size_t              m_lineSize;
 
+    MemAddr             m_curaddr;
+    WClientID           m_curwid;
+
     Result DoRequests()
     {
         assert(!m_requests.Empty());
@@ -43,6 +46,9 @@ class ParallelMemory::Port : public Object
                 // Time the request
                 CycleNo requestTime = m_memory.GetMemoryDelay(m_lineSize);
                 m_nextdone = now + requestTime;
+
+                m_curaddr = request.address;
+                m_curwid = request.wid;
             }
         }
         // There is a request active
@@ -143,8 +149,14 @@ public:
           p_requests(*this, memory.GetClock(), "p_requests"),
           m_requests("b_requests", *this, memory.GetClock(), buffersize), m_nextdone(0),
           p_Requests(*this, "port", delegate::create<Port, &Port::DoRequests>(*this)),
-          m_lineSize(lineSize)
+          m_lineSize(lineSize),
+          m_curaddr(0),
+          m_curwid(-1)
     {
+
+        RegisterSampleVariableInObject(m_curwid, SVC_LEVEL);
+        RegisterSampleVariableInObject(m_curaddr, SVC_LEVEL);
+
         m_requests.Sensitive( p_Requests );
         p_requests.AddProcess(process);
         traces = m_requests;
@@ -192,8 +204,9 @@ bool ParallelMemory::Read(MCID id, MemAddr address)
     assert(id < m_ports.size());
 
     Request request;
-    request.address   = address;
     request.write     = false;
+    request.address   = address;
+    request.wid = -1;
 
     if (!m_ports[id]->AddRequest(request))
     {

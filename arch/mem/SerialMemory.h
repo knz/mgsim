@@ -60,6 +60,9 @@ class SerialMemory : public Object, public IMemory, public VirtualMemory
     uint64_t m_nwrites;
     uint64_t m_nwrite_bytes;
 
+    MemAddr   m_curaddr;
+    WClientID m_curwid;
+
     // Processes
     Process p_Requests;
 

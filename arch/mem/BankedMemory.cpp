@@ -258,6 +258,9 @@ public:
 
         p_Incoming.SetStorageTraces(opt(m_busy));
         p_Bank.SetStorageTraces(opt(m_outgoing));
+
+        RegisterSampleVariableInObject(m_request.address, SVC_LEVEL);
+        RegisterSampleVariableInObject(m_request.wid, SVC_LEVEL);
     }
 };
 
@@ -333,6 +336,7 @@ bool BankedMemory::Read(MCID id, MemAddr address)
     request.client    = &m_clients[id];
     request.size      = m_lineSize;
     request.write     = false;
+    request.wid       = -1;
 
     Bank& bank = *m_banks[ bank_index ];
     if (!bank.AddIncomingRequest(request))

@@ -47,6 +47,7 @@ bool SerialMemory::Read(MCID id, MemAddr address)
     request.callback  = m_clients[id];
     request.address   = address;
     request.write     = false;
+    request.wid       = -1;
 
     if (!m_requests.Push(request))
     {
@@ -146,6 +147,9 @@ Result SerialMemory::DoRequests()
             // Time the request
             CycleNo requestTime = m_baseRequestTime + m_timePerLine;
             m_nextdone = now + requestTime;
+
+            m_curaddr = request.address;
+            m_curwid = request.wid;
         }
     }
     return SUCCESS;
@@ -167,6 +171,9 @@ SerialMemory::SerialMemory(const std::string& name, Object& parent, Clock& clock
     m_nwrites(0),
     m_nwrite_bytes(0),
 
+    m_curaddr(0),
+    m_curwid(-1),
+
     p_Requests(*this, "requests", delegate::create<SerialMemory, &SerialMemory::DoRequests>(*this) )
 {
     m_requests.Sensitive( p_Requests );
@@ -179,6 +186,9 @@ SerialMemory::SerialMemory(const std::string& name, Object& parent, Clock& clock
     RegisterSampleVariableInObject(m_nread_bytes, SVC_CUMULATIVE);
     RegisterSampleVariableInObject(m_nwrites, SVC_CUMULATIVE);
     RegisterSampleVariableInObject(m_nwrite_bytes, SVC_CUMULATIVE);
+
+    RegisterSampleVariableInObject(m_curwid, SVC_LEVEL);
+    RegisterSampleVariableInObject(m_curaddr, SVC_LEVEL);
 }
 
 void SerialMemory::Cmd_Info(ostream& out, const vector<string>& arguments) const
