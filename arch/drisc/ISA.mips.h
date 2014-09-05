@@ -109,7 +109,7 @@ struct ArchDecodeReadLatch
     // FILL IN
 
      ArchDecodeReadLatch() :
-          format(IFORMAT_RTYPE),
+          format(IFORMAT_RTYPE)
     {}
     virtual ~ArchDecodeReadLatch() {}
 };
