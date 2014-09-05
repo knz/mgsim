@@ -10,7 +10,6 @@ enum InstrFormat {
     IFORMAT_REGIMM,
     IFORMAT_JTYPE,
     IFORMAT_RTYPE,
-    IFORMAT_SPECIAL,
 };
 
 enum {
@@ -104,21 +103,13 @@ struct ArchDecodeReadLatch
     /* the fields in this structure become buffers in the pipeline latch. */
 
      InstrFormat format;
-     uint16_t opcode; /* opcode for non-R-type instructions */
-     uint16_t function; /* opcode for R-type instructions */
-     uint16_t regimm; /* opcode for REGIMM instructions */
-     uint16_t shift; /* shift amount for R-type instructions */
-     uint16_t immediate; /* immediate for I-type/REGIMM instructions */
-     int32_t displacement; /* jump target for J-type instructions */
- 
-     ArchDecodeReadLatch() : 
+
+    // FILL IN
+    // Your code here.
+    // FILL IN
+
+     ArchDecodeReadLatch() :
           format(IFORMAT_RTYPE),
-          opcode(0),
-          function(0),
-          regimm(0),
-          shift(0),
-          immediate(0),
-          displacement(0)
     {}
     virtual ~ArchDecodeReadLatch() {}
 };
