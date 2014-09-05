@@ -32,7 +32,7 @@ void Pipeline::DecodeStage::DecodeInstruction(const Instruction& instr)
 
     // FILL IN HERE
     // ...some code missing...
-    m_output.format = 0; // REPLACE: = GetInstrFormat(...FILL IN HERE...)
+    m_output.format = IFORMAT_INVALID; // REPLACE: = GetInstrFormat(...FILL IN HERE...)
 
     switch (m_output.format) {
         case IFORMAT_RTYPE:

@@ -10,6 +10,7 @@ enum InstrFormat {
     IFORMAT_REGIMM,
     IFORMAT_JTYPE,
     IFORMAT_RTYPE,
+    IFORMAT_INVALID
 };
 
 enum {
