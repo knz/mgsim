@@ -103,7 +103,10 @@ struct ArchDecodeReadLatch
 {
     /* the fields in this structure become buffers in the pipeline latch. */
 
-     InstrFormat format;
+    InstrFormat format;
+    int32_t     displacement;
+    uint16_t    function;
+    uint8_t     opcode;
 
     // FILL IN
     // Your code here.
