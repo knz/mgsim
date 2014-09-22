@@ -395,6 +395,8 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         PipeAction ExecReadASR20(uint8_t func);
         PipeAction ExecWriteASR19(uint8_t func);
         PipeAction ExecWriteASR20(uint8_t func);
+#elif defined(TARGET_MIPS32EL) || defined(TARGET_MIPS32)
+        PipeAction ExecBranchTo(MemAddr target, MemAddr next, bool writeRc);
 #endif
 
         static RegValue PipeValueToRegValue(RegType type, const PipeValue& v);

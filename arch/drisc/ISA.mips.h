@@ -104,16 +104,16 @@ struct ArchDecodeReadLatch
     /* the fields in this structure become buffers in the pipeline latch. */
 
     InstrFormat format;
-    int32_t     displacement;
-    uint16_t    function;
-    uint8_t     opcode;
+    int32_t     displacement; // jump target for J-type instructions
+    uint16_t    function; // opcode for R-type instructions
+    uint8_t     opcode; // opcode for non-R-type instructions
 
     // FILL IN
     // Your code here.
     // FILL IN
 
-     ArchDecodeReadLatch() :
-          format(IFORMAT_RTYPE)
+    ArchDecodeReadLatch()
+        : format(IFORMAT_RTYPE), displacement(0), function(0), opcode(0)
     {}
     virtual ~ArchDecodeReadLatch() {}
 };
