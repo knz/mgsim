@@ -113,7 +113,7 @@ namespace Simulator
             size_t act_w, act_h;
             bool req_indexed = m_control[2] >> 16;
 
-            if (req_bpp != 32 && req_bpp != 24 && req_bpp != 16 && req_bpp != 8)
+            if (req_bpp != 32 && req_bpp != 24 && req_bpp != 16 && req_bpp != 8 && req_bpp != 1)
             { DebugIOWrite("unsupported bits per pixel: %u", (unsigned)req_bpp); return true; }
             if (req_indexed && req_bpp > 8)
             { DebugIOWrite("unsupported use of indexed mode with bpp > 8: %u", (unsigned)req_bpp); return true; }
@@ -421,28 +421,75 @@ namespace Simulator
                     Bshift = m_screen->format->Bshift;
 
                 if (m_indexed)
-                {
-                    assert(m_bpp == 8);
-                    /*** 1 byte per pixel, palette lookup ***/
-                    const uint8_t *src = &m_framebuffer[0];
-                    auto& palette = m_palette;
-                    for (dy = 0; dy < screen_h; ++dy)
+                    switch(m_bpp)
                     {
-                        Uint32*         dest = (Uint32*)(pixels + dy * screen_pitch);
-                        unsigned int    sy   = dy * scaley;
-                        for (dx = 0; dx < screen_w; ++dx)
+                    case 8:
+                    {
+                        /*** 1 byte per pixel, palette lookup ***/
+                        const uint8_t *src = &m_framebuffer[0];
+                        auto& palette = m_palette;
+                        for (dy = 0; dy < screen_h; ++dy)
                         {
-                            unsigned int sx  = dx * scalex;
-                            Uint32 color = palette[src[sy * width + sx]];
-                            dest[dx] = (((color & 0xff0000) >> 16) << Rshift)
-                                | (((color & 0x00ff00) >> 8) << Gshift)
-                                | (((color & 0x0000ff)     ) << Bshift);
+                            Uint32*         dest = (Uint32*)(pixels + dy * screen_pitch);
+                            unsigned int    sy   = dy * scaley;
+                            for (dx = 0; dx < screen_w; ++dx)
+                            {
+                                unsigned int sx  = dx * scalex;
+                                Uint32 color = palette[src[sy * width + sx]];
+                                dest[dx] = (((color & 0xff0000) >> 16) << Rshift)
+                                    | (((color & 0x00ff00) >> 8) << Gshift)
+                                    | (((color & 0x0000ff)     ) << Bshift);
+                            }
                         }
                     }
-                }
+                    break;
+                    case 1:
+                    {
+                        /*** 1 bit per pixel, palette lookup ***/
+                        const uint8_t *src = &m_framebuffer[0];
+                        auto& palette = m_palette;
+                        for (dy = 0; dy < screen_h; ++dy)
+                        {
+                            Uint32*         dest = (Uint32*)(pixels + dy * screen_pitch);
+                            unsigned int    sy   = dy * scaley;
+                            for (dx = 0; dx < screen_w; ++dx)
+                            {
+                                unsigned int sx  = dx * scalex;
+                                unsigned int offset = sy * width + sx;
+                                Uint32 color = palette[(src[offset / 8] >> (7 - offset % 8)) & 1];
+                                dest[dx] = (((color & 0xff0000) >> 16) << Rshift)
+                                    | (((color & 0x00ff00) >> 8) << Gshift)
+                                    | (((color & 0x0000ff)     ) << Bshift);
+                            }
+                        }
+                    }
+                    break;
+                    default:
+                        /* no known bpp */
+                        break;
+                    }
                 else
                     switch(m_bpp)
                     {
+                    case 1:
+                    {
+                        /*** 1 bit per pixel, black/white ***/
+                        const uint8_t *src = &m_framebuffer[0];
+                        for (dy = 0; dy < screen_h; ++dy)
+                        {
+                            Uint32*         dest = (Uint32*)(pixels + dy * screen_pitch);
+                            unsigned int    sy   = dy * scaley;
+                            for (dx = 0; dx < screen_w; ++dx)
+                            {
+                                unsigned int sx  = dx * scalex;
+                                unsigned int offset = sy * width + sx;
+                                bool bit = (src[offset / 8] >> (7 - offset % 8)) & 1;
+
+                                dest[dx] = bit ? (0xff << Rshift) | (0xff << Gshift) | (0xff << Bshift) : 0;
+                            }
+                        }
+                    }
+                    break;
                     case 8:
                     {
                         /*** 1 bytes per pixel, 3-3-2 RGB ***/

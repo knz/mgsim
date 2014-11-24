@@ -37,7 +37,7 @@ CONFIGURATION
    simulated platform can update the framebuffer but no pixels are
    displayed on screen.
 
-``SDLHorizScale``, ``SDLVertScale`` 
+``SDLHorizScale``, ``SDLVertScale``
    How many pixels on the real screen to use to display each pixel in
    the framebuffer. These parameters can be adjusted at run-time, see
    `On the host side of the simulation`_ below.
@@ -52,7 +52,7 @@ PROTOCOL
 Changing the display mode
 -------------------------
 
-When read from, words 1-3 indicate the current display mode. 
+When read from, words 1-3 indicate the current display mode.
 
 The following process configures a new mode:
 
@@ -77,6 +77,8 @@ word 0. The following modes are recognized:
 ========== =========== ====== ====================
 Bits 0-15  Bits 16-31  Value  Resulting pixel mode
 ========== =========== ====== ====================
+1          0           1      1-bit
+1          1           65537  1-bit indexed
 8          0           8      RGB 2-3-3
 8          1           65544  8-bit indexed
 16         0           16     RGB 5-6-5
@@ -87,10 +89,16 @@ Bits 0-15  Bits 16-31  Value  Resulting pixel mode
 When in RGB mode, the color components of the output pixels are
 defined by the bits in the framebuffer. For example in pixel mode 24,
 3 adjacent bytes in the framebuffer define one pixel on screen, with
-the first byte for red, 2nd byte for green, 3rd byte for blue. With
-pixel mode 8, one byte of the framebuffer is decomposed as 3 values,
-one value of 2 bits for red (bits 6-7), one value of 3 bits for green
-(bits 4-6), and one value of 3 bits for blue (bits 1-3).
+the first byte for red, 2nd byte for green, 3rd byte for blue.
+
+With pixel mode 8, one byte of the framebuffer is decomposed as 3
+values, one value of 2 bits for red (bits 6-7), one value of 3 bits
+for green (bits 4-6), and one value of 3 bits for blue (bits 1-3).
+
+With pixel mode 1, 8 pixels are encoded using 1 byte. The first
+(leftmost) pixel is encoded using the most significant bit, the last
+(rightmost) using the least significant bit. A binary 0 indicates
+black, a binary 1 indicates white.
 
 When in indexed mode, the value in the framebuffer is used as an index
 in a palette which is defined separately from the framebuffer (in the
@@ -182,7 +190,7 @@ operations. Its device address space is as follows:
 3             R       Current pixel mode (see below)
 3             W       Desired pixel mode (see below)
 4             W       Command: dump the framebuffer contents
-5             R/W     Image index (key) for the next dump       
+5             R/W     Image index (key) for the next dump
 6             R       Maximum supported width
 7             R       Maximum supported height
 8             R       Screen refresh interval in bus clock cycles
@@ -239,4 +247,3 @@ BUGS
 ====
 
 Report bugs & suggest improvements to PACKAGE_BUGREPORT.
-
