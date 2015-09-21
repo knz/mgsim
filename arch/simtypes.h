@@ -18,7 +18,7 @@ namespace Simulator
 #define ARCH_LITTLE_ENDIAN 1
 #define ARCH_BIG_ENDIAN    2
 
-#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32EL)
+#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32EL) || defined(TARGET_RISCV64)
 #define ARCH_ENDIANNESS ARCH_LITTLE_ENDIAN
 #elif defined (TARGET_MTSPARC) || defined(TARGET_MIPS32) || defined(TARGET_OR1K)
 #define ARCH_ENDIANNESS ARCH_BIG_ENDIAN
@@ -102,7 +102,7 @@ struct Float64
     SERIALIZE(a) { a & integer; }
 };
 
-#if defined(TARGET_MTALPHA)
+#if defined(TARGET_MTALPHA) || defined(TARGET_RISCV64)
 typedef uint64_t MemAddr;       ///< Address into memory
 typedef uint64_t MemSize;       ///< Size of something in memory
 typedef uint32_t Instruction;   ///< Instruction bits

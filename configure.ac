@@ -426,6 +426,7 @@ MGS_TARGET_CHECK([mtsparc], [MTSPARC], [MT-SPARC], [mtsparc-linux-gnu], [mtsn_n]
 MGS_TARGET_CHECK([mips], [MIPS32], [MIPS (no MT)], [mips-linux-gnu], [mips_s])
 MGS_TARGET_CHECK([mipsel], [MIPS32EL], [MIPSel (no MT)], [mipsel-linux-gnu], [mipsel_s])
 MGS_TARGET_CHECK([or1k], [OR1K], [OpenRISC 1000 (no MT)], [or1knd-elf], [or1k_s])
+MGS_TARGET_CHECK([riscv64], [RISCV64], [RISC-V (no MT)], [riscv64-unknown-elf], [rv64_s])
 
 if test $target_found = no; then
   AC_MSG_ERROR([Unsupported simulated core model: $target_cpu (did you use --target?)])
@@ -466,6 +467,7 @@ cat <<EOF
 * MIPS tests:             (asm) $enable_mips_tests (compiled) $enable_compiled_mips_tests
 * MIPSel tests:           (asm) $enable_mipsel_tests (compiled) $enable_compiled_mipsel_tests
 * OpenRISC tests:         (asm) $enable_or1k_tests (compiled) $enable_compiled_or1k_tests
+* RISC-V tests:           (asm) $enable_riscv64_tests (compiled) $enable_compiled_riscv64_tests
 *
 * C++ compiler:           $CXX $CPPFLAGS $WARN_CXXFLAGS $AM_CXXFLAGS $CXXFLAGS $LDFLAGS
 * Destination dir:        $prefix

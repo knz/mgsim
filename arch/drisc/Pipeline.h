@@ -48,6 +48,8 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 #include "ISA.mips.h"
 #elif defined(TARGET_OR1K)
 #include "ISA.or1k.h"
+#elif defined(TARGET_RISCV64)
+#include "ISA.rv64.h"
 #endif
 
     static inline PipeValue MAKE_EMPTY_PIPEVALUE(unsigned int size)
@@ -289,7 +291,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         RegAddr TranslateRegister(uint8_t reg, RegType type, unsigned int size, bool *islocal) const;
         void    DecodeInstruction(const Instruction& instr);
 
-#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
+#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL) || defined(TARGET_RISCV64)
         static InstrFormat GetInstrFormat(uint8_t opcode);
 #endif
     public:

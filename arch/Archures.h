@@ -6,5 +6,6 @@
 #define ARCH_SPARC 2
 #define ARCH_MIPS  3
 #define ARCH_OPENRISC  4
+#define ARCH_RISCV 5
 
 #endif

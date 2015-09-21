@@ -78,6 +78,8 @@ struct Thread
     uint32_t     HI;
 #elif defined(TARGET_OR1K)
     // FIXME: FILL IN THREAD-SPECIFIC DATA FIELDS HERE
+#elif defined(TARGET_RISCV64)
+    // FIXME: FILL IN THREAD-SPECIFIC DATA FIELDS HERE
 #endif
 
     bool         waitingForWrites;

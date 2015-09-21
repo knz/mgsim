@@ -5,6 +5,7 @@ include tests/mtalpha/Makefile.inc
 include tests/mtsparc/Makefile.inc
 include tests/mips/Makefile.inc
 include tests/or1k/Makefile.inc
+include tests/rv64/Makefile.inc
 
 # The "slc" command is used by the various target test suites.
 # We need to sandwich -lc between two uses of -lmgos since they

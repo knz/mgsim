@@ -991,6 +991,11 @@ MGSystem::MGSystem(Config& config, bool quiet)
 # if defined(OBJDUMP_OR1K)
 #  define OBJDUMP_CMD OBJDUMP_OR1K
 # endif
+#elif defined(TARGET_RISCV64)
+# define OBJDUMP_VAR "RISCV64_OBJDUMP"
+# if defined(OBJDUMP_RISCV64)
+#  define OBJDUMP_CMD OBJDUMP_RISCV64
+# endif
 #endif
     const char *v = 0;
 #ifdef OBJDUMP_VAR

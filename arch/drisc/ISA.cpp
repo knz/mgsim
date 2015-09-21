@@ -8,4 +8,6 @@
 #include "ISA.mips.cpp"
 #elif defined(TARGET_OR1K)
 #include "ISA.or1k.cpp"
+#elif defined(TARGET_RISCV64)
+#include "ISA.rv64.cpp"
 #endif

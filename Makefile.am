@@ -17,7 +17,7 @@ BUILT_SOURCES =
 ##
 ## Multi-way distcheck
 ##
-CHECK_TARGETS = mtsparc mtalpha mips mipsel or1knd
+CHECK_TARGETS = mtsparc mtalpha mips mipsel or1knd riscv64
 
 check-target-%:
 	mkdir -p build-$* && \

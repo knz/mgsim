@@ -50,7 +50,7 @@ static const unsigned char ELFMAG3 = 'F';  // e_ident[EI_MAG3]
 static const unsigned char EV_NONE    = 0; // Invalid version
 static const unsigned char EV_CURRENT = 1; // Current version
 
-#if defined(TARGET_MTALPHA)
+#if defined(TARGET_MTALPHA) || defined(TARGET_RISCV64)
 #define ELFCLASS ELFCLASS64
 #define ELFDATA  ELFDATA2LSB
 #elif defined(TARGET_MTSPARC)
@@ -156,7 +156,7 @@ static const Elf_Half EM_MIPS_X      = 51; // Stanford MIPS-X
 static const Elf_Half EM_COLDFIRE    = 52; // Motorola Coldfire
 static const Elf_Half EM_68HC12      = 53; // Motorola M68HC12
 static const Elf_Half EM_OR1K        = 92; // OpenRISC 1000
-
+static const Elf_Half EM_RISCV       = 243; // RISC-V
 // unofficial EM_* values
 static const Elf_Half EM_ALPHA       = 0x9026; // Alpha
 static const Elf_Half EM_MTALPHA     = 0xafef; // Microthreaded Alpha
@@ -174,6 +174,9 @@ static const Elf_Half EM_MTSPARC     = 0xaff0; // Microthreaded Sparc V8
 #elif defined(TARGET_OR1K)
 #define MACHINE_NORMAL EM_OR1K /* no MT for now */
 #define MACHINE_LEGACY EM_OR1K
+#elif defined(TARGET_RISCV64)
+#define MACHINE_NORMAL EM_RISCV /* no MT for now */
+#define MACHINE_LEGACY EM_RISCV
 #endif
 
 // File header
