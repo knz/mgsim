@@ -215,6 +215,40 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecuteInstruction()
 }
 
 
+Pipeline::PipeAction Pipeline::ExecuteStage::ExecBranchTo(MemAddr target, MemAddr next, bool writeRc)
+{
+    // This method is called from ExecuteInstruction on branches
+    // that are being taken. It actually optimizes the branch if
+    // it jumps directly to its next instruction.
+
+    if (writeRc)
+    {
+	COMMIT {
+	    m_output.Rcv.m_state = RST_FULL;
+	    m_output.Rcv.m_integer = next;
+	}
+    }
+
+    if (target != next) {
+
+	DebugFlowWrite("F%u/T%u(%llu) %s branch %s",
+		       (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
+		       GetDRISC().GetSymbolTable()[target].c_str());
+
+	COMMIT {
+	    // Enact the branch.
+	    m_output.swch = true;
+	    m_output.pc = target;
+	}
+
+	// Flush the pipeline from further instructions
+	// in the same thread.
+	return PIPE_FLUSH;
+    }
+    return PIPE_CONTINUE;
+}
+
+
 
 // Function for naming local registers according to a standard ABI
 const vector<string>& GetDefaultLocalRegisterAliases(RegType type)
