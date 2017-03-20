@@ -150,6 +150,7 @@ COMMON_SRC = \
 	arch/symtable.cpp \
 	arch/Interconnect.h \
 	arch/Interconnect.hpp \
+	arch/IOBus.h \
 	arch/IOMessageInterface.cpp \
 	arch/IOMessageInterface.h \
 	arch/ic/Bus.h \
