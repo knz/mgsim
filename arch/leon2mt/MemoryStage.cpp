@@ -18,7 +18,7 @@ namespace leon2mt
 
 Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
 {
-    PipeValue rcv = m_input.Rcv;
+    PipeValue rcv = m_input.Rdv;
 
     unsigned inload = 0;
     unsigned instore = 0;
@@ -42,15 +42,15 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                 char data[MAX_MEMORY_OPERATION_SIZE];
 
                 uint64_t value = 0;
-                switch (m_input.Rc.type) {
-                case RT_INTEGER: value = m_input.Rcv.m_integer.get(m_input.Rcv.m_size); break;
-                case RT_FLOAT:   value = m_input.Rcv.m_float.toint(m_input.Rcv.m_size); break;
+                switch (m_input.Rd.type) {
+                case RT_INTEGER: value = m_input.Rdv.m_integer.get(m_input.Rdv.m_size); break;
+                case RT_FLOAT:   value = m_input.Rdv.m_float.toint(m_input.Rdv.m_size); break;
                 default: UNREACHABLE;
                 }
 
 
 
-                SerializeRegister(m_input.Rc.type, value, data, (size_t)m_input.size);
+                SerializeRegister(m_input.Rd.type, value, data, (size_t)m_input.size);
 
                 auto& mmio = GetLEON2MT().GetIOMatchUnit();
                 if (mmio.IsRegisteredWriteAddress(m_input.address, m_input.size))
@@ -63,7 +63,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                       (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                       m_input.pc_sym,
                                       (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                      m_input.Rcv.str(m_input.Rc.type).c_str());
+                                      m_input.Rdv.str(m_input.Rd.type).c_str());
 
                         return PIPE_STALL;
                     }
@@ -78,7 +78,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                       (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                       m_input.pc_sym,
                                       (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                      m_input.Rcv.str(m_input.Rc.type).c_str());
+                                      m_input.Rdv.str(m_input.Rd.type).c_str());
 
                         return PIPE_STALL;
                     }
@@ -104,7 +104,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                               (int)(sizeof(MemAddr)*2),
                               (unsigned long long)m_input.address, (size_t)m_input.size,
                               (unsigned long long)(value & ~(((uint64_t)-1) << (8 * m_input.size) )),
-                              m_input.Ra.str().c_str(), m_input.Rcv.str(m_input.Ra.type).c_str());
+                              m_input.Rs1.str().c_str(), m_input.Rdv.str(m_input.Rs1.type).c_str());
             }
             catch (SimulationException& e)
             {
@@ -112,20 +112,20 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                 stringstream details;
                 details << "While processing store: *"
                         << setw(sizeof(Integer) * 2) << setfill('0') << right << hex << m_input.address << left
-                        << " <- " << m_input.Ra.str() << " = " << m_input.Rcv.str(m_input.Ra.type);
+                        << " <- " << m_input.Rs1.str() << " = " << m_input.Rdv.str(m_input.Rs1.type);
                 e.AddDetails(details.str());
                 throw;
             }
         }
         // Memory read
-        else if (m_input.Rc.valid())
+        else if (m_input.Rd.valid())
         {
             // Check for breakpoints
             GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::MEMREAD, m_input.address, *this);
 
             if (m_input.address >= 4 && m_input.address < 8)
             {
-                // Special range. Rather hackish.
+                // Special range. Rs1ther hackish.
                 // Note that we exclude address 0 from this so NULL pointers are still invalid.
 
                 // Invalid address; don't send request, just clear register
@@ -134,7 +134,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                 DebugMemWrite("F%u/T%u(%llu) %s clear %s",
                               (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                               m_input.pc_sym,
-                              m_input.Rc.str().c_str());
+                              m_input.Rd.str().c_str());
             }
             else
             {
@@ -143,12 +143,12 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                 try
                 {
                     char data[MAX_MEMORY_OPERATION_SIZE];
-                    RegAddr reg = m_input.Rc;
+                    RegAddr reg = m_input.Rd;
 
                     auto& mmio = GetLEON2MT().GetIOMatchUnit();
                     if (mmio.IsRegisteredReadAddress(m_input.address, m_input.size))
                     {
-                        result = mmio.Read(m_input.address, data, m_input.size, m_input.fid, m_input.tid, m_input.Rc);
+                        result = mmio.Read(m_input.address, data, m_input.size, m_input.fid, m_input.tid, m_input.Rd);
 
                         switch(result)
                         {
@@ -157,7 +157,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                           (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                           m_input.pc_sym,
                                           (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                          m_input.Rc.str().c_str());
+                                          m_input.Rd.str().c_str());
 
                             return PIPE_STALL;
 
@@ -179,7 +179,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                           (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                           m_input.pc_sym,
                                           (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                          m_input.Rc.str().c_str());
+                                          m_input.Rd.str().c_str());
 
                             break;
 
@@ -200,7 +200,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                           (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                           m_input.pc_sym,
                                           (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                          m_input.Rc.str().c_str());
+                                          m_input.Rd.str().c_str());
 
                             return PIPE_STALL;
 
@@ -225,7 +225,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                           (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                           m_input.pc_sym,
                                           (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                          m_input.Rc.str().c_str());
+                                          m_input.Rd.str().c_str());
 
                             break;
                         case SUCCESS:
@@ -236,11 +236,11 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                     // Prepare for counter increment
                     inload = m_input.size;
 
-                    rcv.m_size = m_input.Rcv.m_size;
+                    rcv.m_size = m_input.Rdv.m_size;
                     if (result == SUCCESS)
                     {
                         // Unserialize and store data
-                        uint64_t value = UnserializeRegister(m_input.Rc.type, data, (size_t)m_input.size);
+                        uint64_t value = UnserializeRegister(m_input.Rd.type, data, (size_t)m_input.size);
 
                         if (m_input.sign_extend)
                         {
@@ -250,7 +250,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                         }
 
                         rcv.m_state = RST_FULL;
-                        switch (m_input.Rc.type)
+                        switch (m_input.Rd.type)
                         {
                         case RT_INTEGER: rcv.m_integer.set(value, rcv.m_size); break;
                         case RT_FLOAT:   rcv.m_float.fromint(value, rcv.m_size); break;
@@ -262,7 +262,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                                       (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
                                       m_input.pc_sym,
                                       (int)(sizeof(MemAddr)*2), (unsigned long long)m_input.address, (size_t)m_input.size,
-                                      m_input.Rc.str().c_str(), rcv.str(m_input.Rc.type).c_str());
+                                      m_input.Rd.str().c_str(), rcv.str(m_input.Rd.type).c_str());
                     }
                 }
                 catch (SimulationException& e)
@@ -271,7 +271,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                     stringstream details;
                     details << "While processing load: *"
                             << setw(sizeof(Integer) * 2) << setfill('0') << right << hex << m_input.address << left
-                            << " -> " << m_input.Rc.str();
+                            << " -> " << m_input.Rd.str();
                     e.AddDetails(details.str());
                     throw;
                 }
@@ -285,9 +285,9 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
         (CommonData&)m_output = m_input;
 
         m_output.suspend = m_input.suspend;
-        m_output.Rc      = m_input.Rc;
+        m_output.Rd      = m_input.Rd;
         m_output.Rrc     = m_input.Rrc;
-        m_output.Rcv     = rcv;
+        m_output.Rdv     = rcv;
 
         // Increment counters
         m_loads += !!inload;

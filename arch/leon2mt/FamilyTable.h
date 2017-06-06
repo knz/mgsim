@@ -16,79 +16,29 @@ namespace leon2mt
 
 struct Family
 {
-    struct RegInfo
-    {
-        RegsNo   count;            // Number of globals, locals and shareds
-        RegIndex base;             // Base address of this family's register block
-        RegSize  size;             // Size of the allocated registers (could be calculated from other values)
-        RegIndex last_shareds;     // Address of the last allocated thread's shareds
+
+    struct RegInfo {
+      RegIndex     grb;            // Global register base
+      RegIndex     goff;           // Global register offset
     };
-
-    // Groups all dependencies that need to be resolved before termination and/or cleanup
-    struct Dependencies
-    {
-        /*
-         All threads in the family must have been allocated before the family is done
-        */
-        bool allocationDone;
-
-        /*
-         The parent threads needs to be notified of the termination of the
-         family. This is done by having each family notify the family on the
-         next core once itself and its predecessor has terminated. This flag
-         indicates the family has terminated on all preceding cores.
-         Eventually this will cause this flag to be set on the family on the
-         parent core.
-        */
-        bool prevSynchronized;
-
-        /*
-         After synchronizing on the family's termination, the parent thread
-         can still read the final shareds back from the last thread's context.
-         Therefore, we cannot cleanup a family until the parent has
-         explicitely detached from it.
-        */
-        bool detached;
-
-        /*
-         After synchronizing on the family's termination, the sync even can
-         hang around in a FT-sized buffer before being sent out. Until that
-         has happened, the family cannot be reused.
-        */
-        bool syncSent;
-
-        /*
-         All allocated threads (0 <= allocated <= physBlockSize) must have
-         been cleaned up before the family has terminated.
-        */
-        TSize numThreadsAllocated;
-
-        /*
-         FIXME:
-         Maybe this can be generalized to a thread not being cleaned up
-         before all pending operations made by it have completed. Then
-         this dependency becomes implicit in the numThreadsAllocated
-         dependency.
-        */
-        unsigned int numPendingReads;
-        };
 
     PSize        placeSize;      // Number of cores this family wanted to run on.
     PSize        numCores;       // Number of cores this family is actually running on (1 <= numCores <= placeSize).
     FCapability  capability;     // Capability value for security
     MemAddr      pc;             // Initial PC for newly created threads
-    TSize        physBlockSize;  // Physical block size, <= Virtual block size, depending on the amount of free registers
-    SInteger     start;          // Start index of the family (on this core)
-    SInteger     step;           // Step size of the family
+    MASK         gmask;          // Register partitioning mask
+    TID          htg_base;       // Ptr to free threads allocated to this family
+    TID          listener;       // listener thread (t.wait)
+    RegIndex     grb;            // Global register base
+    RegIndex     goff;           // Global register offset
+    bool         dF, dR, dT;     // deallocation flags (f.fence)
+
+    BIDX         bx, by, bw, bh; // Block width/height
+    GIDX         gx, gy, gw, gh; // Grid width/height
     union {
-        SInteger limit;          // Limit of the family
         Integer  nThreads;       // Number of threads we still need to run (on this core)
     };
-    Dependencies dependencies;   // The dependencies for termination and cleanup
     LFID         link;           // The LFID of the matching family on the next CPU (prev during allocate)
-    bool         hasShareds;     // Does this family use shareds?
-    bool         legacy;         // Consists of a single thread of legacy code?
-    bool         prevCleanedUp;  // Last thread has been cleaned up
     bool         broken;         // Family terminated due to break
 
     struct
@@ -98,12 +48,9 @@ struct Family
         bool     done;           // Whether the family is done or not
     }            sync;           // Synchronisation information
 
-    TID          lastAllocated;  // Last thread that has been allocated
-
     RegInfo      regs[NUM_REG_TYPES];    // Register information
+    FamilyState2 state;          // Family state
 
-    // Admin
-    FamilyState  state;          // Family state
 };
 
 class FamilyTable : public Object, public Inspect::Interface<Inspect::Read>

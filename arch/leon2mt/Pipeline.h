@@ -104,9 +104,25 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 
     struct CommonData
     {
-        MemAddr pc;
-        TID     tid;
-        LFID    fid;
+        MemAddr  pc;
+
+        TID      tid;
+        LFID     fid;
+        PIX      pix;
+
+        MASK     gmask;
+
+        RegIndex grb;
+        RegIndex goff;
+
+        RegIndex lrb;
+        RegIndex loff;
+
+        GIDX    bx, by;
+        BIDX    bw, bh;
+        GIDX    gx, gy;
+        GIDX    gw, gh;
+
         bool    swch;
         bool    kill;
 
@@ -115,7 +131,12 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         const char*  pc_sym;        // Symbolic name for PC
         uint64_t     logical_index; // Thread logical index
 
-        CommonData() : pc(0), tid(0), fid(0), swch(false), kill(false), pc_dbg(0), pc_sym(NULL), logical_index(0) {}
+        CommonData() : pc(0), tid(0), fid(0), pix(0),
+                       gmask(0), grb(0), goff(0),
+                       lrb(0), loff(0),
+                       bx(0), by(0), bw(0), bh(0),
+                       gx(0), gy(0), gw(0), gh(0),
+                       swch(false), kill(false), pc_dbg(0), pc_sym(NULL), logical_index(0) {}
         CommonData(const CommonData&) = default;
         CommonData& operator=(const CommonData&) = default;
         virtual ~CommonData() {}
@@ -146,10 +167,10 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         PSize           placeSize;
 
         // Registers addresses, types and sizes
-        RegAddr         Ra,  Rb,  Rc;
-        unsigned int    RaSize, RbSize, RcSize;
-        bool            RaIsLocal, RbIsLocal;
-        bool            RaNotPending; // Ra is only used to check for Not Pending
+        RegAddr         Rs1,  Rs2,  Rd;
+        unsigned int    Rs1Size, Rs2Size, RdSize;
+        bool            Rs1IsLocal, Rs2IsLocal;
+        bool            Rs1NotPending; // Rs1 is only used to check for Not Pending
 
         // For [f]mov[gsd], the offset in the child family's register file
         unsigned char   regofs;
@@ -160,10 +181,10 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
             : literal(0),
             regs(),
             placeSize(0),
-            Ra(), Rb(), Rc(),
-            RaSize(0), RbSize(0), RcSize(0),
-            RaIsLocal(false), RbIsLocal(false),
-            RaNotPending(false),
+            Rs1(), Rs2(), Rd(),
+            Rs1Size(0), Rs2Size(0), RdSize(0),
+            Rs1IsLocal(false), Rs2IsLocal(false),
+            Rs1NotPending(false),
             regofs(0),
             legacy(false) {}
     };
@@ -174,9 +195,9 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 
         // Registers addresses, values and types
         RegInfo         regs;
-        RegAddr         Rc;
-        PipeValue       Rav, Rbv;
-        unsigned int    RcSize;
+        RegAddr         Rd;
+        PipeValue       Rs1v, Rs2v;
+        unsigned int    RdSize;
 
         // For [f]mov[gsd], the offset in the child family's register file
         unsigned char   regofs;
@@ -184,16 +205,16 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         bool            legacy;
 
         // For debugging only
-        RegAddr         Ra, Rb;
+        RegAddr         Rs1, Rs2;
 
         ReadExecuteLatch()
             : placeSize(0),
             regs(),
-            Rc(), Rav(), Rbv(),
-            RcSize(0),
+            Rd(), Rs1v(), Rs2v(),
+            RdSize(0),
             regofs(0),
             legacy(false),
-            Ra(), Rb()
+            Rs1(), Rs2()
         {}
     };
 
@@ -207,33 +228,33 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         bool          sign_extend;    // Sign extend sub-register loads?
 
         // To be written address and value
-        PipeValue     Rcv;      // On loads, m_state = RST_INVALID and m_size is reg. size
-        RegAddr       Rc;
+        PipeValue     Rdv;      // On loads, m_state = RST_INVALID and m_size is reg. size
+        RegAddr       Rd;
 
         PSize         placeSize;
 
         RemoteMessage Rrc;
 
         // For debugging only
-        RegAddr       Ra; // the origin of the value for a store
+        RegAddr       Rs1; // the origin of the value for a store
 
         ExecuteMemoryLatch()
             : suspend(SUSPEND_NONE),
             address(0), size(0), sign_extend(false),
-            Rcv(), Rc(),
+            Rdv(), Rd(),
             placeSize(0),
-            Rrc(), Ra() {}
+            Rrc(), Rs1() {}
     };
 
     struct MemoryWritebackLatch : public Latch
     {
         SuspendType   suspend;
-        RegAddr       Rc;
-        PipeValue     Rcv;
+        RegAddr       Rd;
+        PipeValue     Rdv;
 
         RemoteMessage Rrc;
 
-        MemoryWritebackLatch() : suspend(SUSPEND_NONE), Rc(), Rcv(), Rrc() {}
+        MemoryWritebackLatch() : suspend(SUSPEND_NONE), Rd(), Rdv(), Rrc() {}
     };
 
     //
@@ -319,7 +340,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         ReadExecuteLatch&           m_output;
         std::vector<BypassInfo>     m_bypasses;
         OperandInfo                 m_operand1, m_operand2;
-        bool                        m_RaNotPending;
+        bool                        m_Rs1NotPending;
 
 //#if defined(TARGET_MTSPARC)
         // Sparc memory stores require three registers so takes two cycles.
@@ -368,20 +389,20 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 
 //#if defined(TARGET_MTALPHA)
 //        static bool BranchTaken(uint8_t opcode, const PipeValue& value);
-//        bool ExecuteINTA(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteINTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteINTS(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteINTM(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteFLTV(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteFLTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteFLTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteITFP(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-//        bool ExecuteFPTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteINTA(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteINTL(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteINTS(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteINTM(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteFLTV(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteFLTI(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteFLTL(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteITFP(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
+//        bool ExecuteFPTI(PipeValue& Rdv, const PipeValue& Rs1v, const PipeValue& Rs2v, int func);
 //#elif defined(TARGET_MTSPARC)
         static bool BranchTakenInt(int cond, uint32_t psr);
         static bool BranchTakenFlt(int cond, uint32_t fsr);
-               uint32_t ExecBasicInteger(int opcode, uint32_t Rav, uint32_t Rbv, uint32_t& Y, PSR& psr); // not static for div/0 exceptions
-               uint32_t ExecOtherInteger(int opcode, uint32_t Rav, uint32_t Rbv, uint32_t& Y, PSR& psr);
+               uint32_t ExecBasicInteger(int opcode, uint32_t Rs1v, uint32_t Rs2v, uint32_t& Y, PSR& psr); // not static for div/0 exceptions
+               uint32_t ExecOtherInteger(int opcode, uint32_t Rs1v, uint32_t Rs2v, uint32_t& Y, PSR& psr);
         PipeAction ExecReadASR19(uint8_t func);
         PipeAction ExecReadASR20(uint8_t func);
         PipeAction ExecWriteASR19(uint8_t func);

@@ -71,6 +71,7 @@ public:
     enum CreateState
     {
         CREATE_INITIAL,             // Waiting for a family to create
+        CREATE_LOAD_REGSPEC,        // Load program code to look for register window specification
         CREATE_LOADING_LINE,        // Waiting until the cache-line is loaded
         CREATE_LINE_LOADED,         // The line has been loaded
         CREATE_RESTRICTING,         // Check family property and restrict if necessary
@@ -106,6 +107,9 @@ public:
 
     /// Allocates a contexts and sets the family's 'link' field to prev_fid
     LFID AllocateContext(ContextType type, LFID prev_fid, PSize placeSize);
+
+    // Decode the register mask
+    unsigned GetGlobalRegCount(MASK gmask);
 
     // Returns the physical register address for a logical register in a certain family.
     RegAddr GetRemoteRegisterAddress(LFID fid, RemoteRegType kind, const RegAddr& addr) const;

@@ -2,11 +2,13 @@
 #ifndef SIMTYPES_H
 #define SIMTYPES_H
 
+
 #include "Archures.h"
 #include <sim/types.h>
 #include <sim/unreachable.h>
 #include <sim/except.h>
 #include <sim/serialization.h>
+#include <sim/log2.h>
 
 #include <string>
 #include <cassert>
@@ -20,12 +22,13 @@ namespace Simulator
 
 #if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32EL)
 #define ARCH_ENDIANNESS ARCH_LITTLE_ENDIAN
-#elif defined (TARGET_MTSPARC) || defined(TARGET_MIPS32) || defined(TARGET_OR1K)
+#elif defined (TARGET_MTSPARC) || defined (TARGET_LEON2MT) || defined(TARGET_MIPS32) || defined(TARGET_OR1K)
 #define ARCH_ENDIANNESS ARCH_BIG_ENDIAN
 #endif
 
 typedef unsigned PID;       ///< DRISC index
 typedef unsigned TID;       ///< Thread index
+typedef unsigned PIX;       ///< Thread physical index
 typedef unsigned CID;       ///< Cache index
 typedef unsigned PSize;     ///< DRISC list size
 typedef unsigned TSize;     ///< Thread list size
@@ -34,14 +37,26 @@ typedef unsigned RegSize;   ///< Size of something in the register file
 typedef unsigned FSize;     ///< Family list size
 typedef unsigned LFID;      ///< Local family index
 
+typedef unsigned BIDX;      ///< block index
+typedef unsigned GIDX;      ///< grid index
+typedef unsigned MASK;      ///< globals mask
+
 typedef unsigned WClientID; ///< Entity ID to match memory writes (either TID or LFID depending on config)
 
 static const PID       INVALID_PID  = PID (-1);
 static const LFID      INVALID_LFID = LFID(-1);
 static const TID       INVALID_TID  = TID (-1);
+static const PIX       INVALID_PIX  = PIX (-1);
 static const WClientID INVALID_WCLIENTID = WClientID(-1);
 static const CID       INVALID_CID  = CID (-1);
 static const RegIndex  INVALID_REG_INDEX = RegIndex (-1);
+
+static const BIDX      INVALID_BIDX  = BIDX (0);
+static const GIDX      INVALID_GIDX  = GIDX (0);
+static const BIDX      MAXBIDX       = BIDX(512);
+static const GIDX      MAXGIDX       = GIDX(512);
+static const unsigned  LBIDX         = ilog2(MAXBIDX);
+static const unsigned  LGIDX         = ilog2(MAXGIDX);
 
 
 enum ContextType
@@ -112,7 +127,7 @@ typedef Float64  Float;         ///< Natural floating point type
 #define MEMSIZE_WIDTH 64
 #define INTEGER_WIDTH 64
 #define MEMSIZE_MAX UINT64_MAX
-#elif defined(TARGET_MTSPARC) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL) || defined(TARGET_OR1K)
+#elif defined(TARGET_MTSPARC) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL) || defined(TARGET_OR1K) || defined (TARGET_LEON2MT)
 typedef uint32_t MemAddr;       ///< Address into memory
 typedef uint32_t MemSize;       ///< Size of something in memory
 typedef uint32_t Instruction;   ///< Instruction bits
@@ -347,6 +362,16 @@ enum FamilyState
     FST_TERMINATED,
 };
 
+enum FamilyState2 {
+    FST2_INIT,
+    FST2_CREATE,
+    FST2_WAIT,
+    FST2_BARRIER,
+    FST2_TERMINATE,
+    FST2_TERMINATED,
+    FST2_ERROR
+};
+
 enum ExitCode
 {
     EXITCODE_NORMAL,    ///< Family terminated normally
@@ -399,6 +424,12 @@ enum FamilyProperty {
     FAMPROP_LIMIT,
     FAMPROP_STEP,
     FAMPROP_BLOCK,
+
+    FAMPROP_SETBLKSIZE,
+    FAMPROP_SETGRDSIZE,
+    FAMPROP_MAPG,
+    FAMPROP_MAPHTG,
+    FAMPROP_FENCE,
 };
 
 enum RegState {
@@ -529,7 +560,7 @@ Instruction UnserializeInstruction(const void* data);
 typedef uint64_t FPCR;  // Floating Point Control Register
 typedef uint32_t PSR;   // Processor State Register
 typedef uint32_t FSR;   // Floating-Point State Register
-#elif defined(TARGET_MTSPARC)
+#elif defined(TARGET_MTSPARC) || defined (TARGET_LEON2MT)
 typedef uint32_t PSR;   // Processor State Register
 typedef uint32_t FSR;   // Floating-Point State Register
 #endif

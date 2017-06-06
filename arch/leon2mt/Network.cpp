@@ -578,6 +578,16 @@ Result Network::DoDelegationIn()
                 case FAMPROP_LIMIT: family.limit         = (SInteger)msg.property.value; break;
                 case FAMPROP_STEP:  family.step          = (SInteger)msg.property.value; break;
                 case FAMPROP_BLOCK: family.physBlockSize = (TSize)msg.property.value; break;
+                
+                case FAMPROP_SETBLKSIZE:    family.bw =((SInteger)msg.property.value >> LBIDX); 
+                                            family.bh =(((SInteger)msg.property.value << 32-LBIDX)>>32); 
+                                            break;
+                case FAMPROP_SETGRDSIZE:    family.gw =((SInteger)msg.property.value >> LGIDX); 
+                                            family.gh =(((SInteger)msg.property.value << 32-LGIDX)>>32); 
+                                            break;
+                case FAMPROP_MAPG:       family.gmask    =(SInteger)msg.property.value; break;
+                case FAMPROP_MAPHTG:     family.htg      =(SInteger)msg.property.value; break;
+                case FAMPROP_FENCE:      family.listener =(SInteger)msg.property.value; break;
             default: UNREACHABLE;
             }
         }

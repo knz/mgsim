@@ -38,11 +38,11 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
         }
     }
 
-    if (m_input.Rcv.m_state != RST_INVALID)
+    if (m_input.Rdv.m_state != RST_INVALID)
     {
         // We have something to write back
-        assert(m_input.Rcv.m_size % sizeof(Integer) == 0);
-        size = m_input.Rcv.m_size / sizeof(Integer);
+        assert(m_input.Rdv.m_size % sizeof(Integer) == 0);
+        size = m_input.Rdv.m_size / sizeof(Integer);
 
         if (writebackOffset == -1)
         {
@@ -54,7 +54,7 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
         {
             // Take data from input
             RegValue value = MAKE_EMPTY_REG();
-            value.m_state = m_input.Rcv.m_state;
+            value.m_state = m_input.Rdv.m_state;
             switch (value.m_state)
             {
             case RST_PENDING:
@@ -63,8 +63,8 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
                 if (writebackOffset == 0)
                 {
                     // Store the thread and memory information in the first register only
-                    value.m_waiting = m_input.Rcv.m_waiting;
-                    value.m_memory  = m_input.Rcv.m_memory;
+                    value.m_waiting = m_input.Rdv.m_waiting;
+                    value.m_memory  = m_input.Rdv.m_memory;
                 }
                 break;
 
@@ -77,10 +77,10 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
 #endif
                 const unsigned int shift = index * 8 * sizeof(Integer);
 
-                switch (m_input.Rc.type)
+                switch (m_input.Rd.type)
                 {
-                    case RT_INTEGER: value.m_integer       = (Integer)(m_input.Rcv.m_integer.get(m_input.Rcv.m_size) >> shift); break;
-                    case RT_FLOAT:   value.m_float.integer = (Integer)(m_input.Rcv.m_float.toint(m_input.Rcv.m_size) >> shift); break;
+                    case RT_INTEGER: value.m_integer       = (Integer)(m_input.Rdv.m_integer.get(m_input.Rdv.m_size) >> shift); break;
+                    case RT_FLOAT:   value.m_float.integer = (Integer)(m_input.Rdv.m_float.toint(m_input.Rdv.m_size) >> shift); break;
                 }
                 break;
             }
@@ -90,10 +90,10 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
                 UNREACHABLE;
             }
 
-            if (m_input.Rc.valid())
+            if (m_input.Rd.valid())
             {
                 // Get the address of the register we're writing.
-                const RegAddr addr = MAKE_REGADDR(m_input.Rc.type, m_input.Rc.index + writebackOffset);
+                const RegAddr addr = MAKE_REGADDR(m_input.Rd.type, m_input.Rd.index + writebackOffset);
 
                 // We have something to write back
                 if (!m_regFile.p_pipelineW.Write(addr))

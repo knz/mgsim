@@ -42,7 +42,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 
 #if defined(TARGET_MTALPHA)
 #include "ISA.mtalpha.h"
-#elif defined(TARGET_MTSPARC)
+#elif defined(TARGET_MTSPARC) || defined (TARGET_LEON2MT)
 #include "ISA.mtsparc.h"
 #elif defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
 #include "ISA.mips.h"

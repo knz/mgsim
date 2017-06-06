@@ -137,6 +137,10 @@ private:
         unsigned int pid_bits;  ///< Number of bits for a PID (LEON2MT ID)
         unsigned int fid_bits;  ///< Number of bits for a LFID (Local Family ID)
         unsigned int tid_bits;  ///< Number of bits for a TID (Thread ID)
+        unsigned int gw_bits;  ///< Number of bits for a grid width
+        unsigned int gh_bits;  ///< Number of bits for a grid height
+        unsigned int bw_bits;  ///< Number of bits for a block width
+        unsigned int bh_bits;  ///< Number of bits for a block height
     } m_bits;
 
     // The components on the core

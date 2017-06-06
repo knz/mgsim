@@ -1,6 +1,6 @@
-#include "MGSystem.h"
+#include "L2MTSystem.h"
 
-#include "arch/drisc/DRISC.h"
+#include "arch/leon2mt/LEON2MT.h"
 
 #ifdef ENABLE_MEM_SERIAL
 #include "arch/mem/SerialMemory.h"
@@ -50,18 +50,18 @@
 using namespace Simulator;
 using namespace std;
 
-uint64_t MGSystem::GetOp() const
+uint64_t L2MTSystem::GetOp() const
 {
     uint64_t op = 0;
-    for (DRISC* p : m_procs)
+    for (LEON2MT* p : m_procs)
         op += p->GetPipeline().GetOp();
     return op;
 }
 
-uint64_t MGSystem::GetFlop() const
+uint64_t L2MTSystem::GetFlop() const
 {
     uint64_t flop = 0;
-    for (DRISC* p : m_procs)
+    for (LEON2MT* p : m_procs)
         flop += p->GetPipeline().GetFlop();
     return flop;
 }
@@ -105,7 +105,7 @@ void GetComponents(map<string, Object*>& ret, Object *cur, const string& pat)
     }
 }
 
-map<string, Object*> MGSystem::GetComponents(const string& pat)
+map<string, Object*> L2MTSystem::GetComponents(const string& pat)
 {
     map<string, Object*> ret;
     ::GetComponents(ret, m_root, pat);
@@ -136,7 +136,7 @@ static string StringReplace(string arg, string pat, string repl)
     return res;
 }
 
-void MGSystem::PrintProcesses(ostream& out, const string& pat) const
+void L2MTSystem::PrintProcesses(ostream& out, const string& pat) const
 {
     auto& allprocs = GetKernel()->GetAllProcesses();
     for (const Process* p : allprocs)
@@ -191,7 +191,7 @@ static void PrintComponents(ostream& out, const Object* cur, const string& inden
     }
 }
 
-void MGSystem::PrintComponents(ostream& out, const string& pat, size_t levels) const
+void L2MTSystem::PrintComponents(ostream& out, const string& pat, size_t levels) const
 {
     ::PrintComponents(out, m_root, "", pat, levels, 0, false);
 }
@@ -204,7 +204,7 @@ static size_t CountComponents(const Object& obj)
     return c;
 }
 
-void MGSystem::PrintCoreStats(ostream& os) const {
+void L2MTSystem::PrintCoreStats(ostream& os) const {
     struct my_iomanip_i fi;
     struct my_iomanip_f ff;
     struct my_iomanip_p fp;
@@ -392,7 +392,7 @@ void MGSystem::PrintCoreStats(ostream& os) const {
        << "# tcreates: total number of threads created" << endl;
 }
 
-void MGSystem::PrintMemoryStatistics(ostream& os) const {
+void L2MTSystem::PrintMemoryStatistics(ostream& os) const {
     uint64_t nr = 0, nrb = 0, nw = 0, nwb = 0, nrext = 0, nwext = 0;
 
     m_memory->GetMemoryStatistics(nr, nw, nrb, nwb, nrext, nwext);
@@ -405,7 +405,7 @@ void MGSystem::PrintMemoryStatistics(ostream& os) const {
 
 }
 
-void MGSystem::PrintState(const vector<string>& /*unused*/) const
+void L2MTSystem::PrintState(const vector<string>& /*unused*/) const
 {
     // This should be all non-idle processes
     for (const Clock* clock = GetKernel()->GetActiveClocks(); clock != NULL; clock = clock->GetNext())
@@ -454,12 +454,12 @@ void MGSystem::PrintState(const vector<string>& /*unused*/) const
         }
     }
 
-    for (DRISC* p : m_procs)
+    for (LEON2MT p : m_procs)
         if (!p->IsIdle())
             cout << p->GetName() << ": non-empty" << endl;
 }
 
-void MGSystem::PrintAllStatistics(ostream& os) const
+void L2MTSystem::PrintAllStatistics(ostream& os) const
 {
     ResourceUsage ru(true);
 
@@ -477,7 +477,7 @@ void MGSystem::PrintAllStatistics(ostream& os) const
 }
 
 // Steps the entire system this many cycles
-void MGSystem::Step(CycleNo nCycles)
+void L2MTSystem::Step(CycleNo nCycles)
 {
     m_breakpoints.Resume();
     RunState state = GetKernel()->Step(nCycles);
@@ -499,7 +499,7 @@ void MGSystem::Step(CycleNo nCycles)
         // An idle state might actually be deadlock if there's a
         // suspended thread.  So check all cores to see if they're
         // really done.
-        for (DRISC* p : m_procs)
+        for (LEON2MT p : m_procs)
             if (!p->IsIdle())
             {
                 goto deadlock;
@@ -561,7 +561,7 @@ void MGSystem::Step(CycleNo nCycles)
         ss << "Suspended registers:" << endl;
 
         unsigned int num_regs = 0;
-        for (DRISC* p : m_procs)
+        for (LEON2MT p : m_procs)
         {
             unsigned suspended = p->GetNumSuspendedRegisters();
             if (suspended > 0)
@@ -583,7 +583,7 @@ void MGSystem::Step(CycleNo nCycles)
 
 }
 
-void MGSystem::Disassemble(MemAddr addr, size_t sz) const
+void L2MTSystem::Disassemble(MemAddr addr, size_t sz) const
 {
     ostringstream cmd;
 
@@ -595,7 +595,7 @@ void MGSystem::Disassemble(MemAddr addr, size_t sz) const
         clog << "warning: system() returned " << x << endl;
 }
 
-MGSystem::MGSystem(Config& config, bool quiet)
+L2MTSystem::L2MTSystem(Config& config, bool quiet)
     :
 #ifndef STATIC_KERNEL
       m_kernel(),
@@ -776,7 +776,7 @@ MGSystem::MGSystem(Config& config, bool quiet)
         Clock& coreclock = kernel.CreateClock(GetTopSubConfOpt(name, "Freq", Clock::Frequency, default_core_freq));
         if (m_clock == 0)
             m_clock = &coreclock;
-        m_procs[i]   = new DRISC(name, *m_root, coreclock, i, m_procs, m_breakpoints);
+        m_procs[i]   = new LEON2MT(name, *m_root, coreclock, i, m_procs, m_breakpoints);
         m_procs[i]->ConnectMemory(m_memory, memadmin);
         m_procs[i]->ConnectFPU(m_fpus[i / numProcessorsPerFPU]);
 
@@ -785,7 +785,7 @@ MGSystem::MGSystem(Config& config, bool quiet)
             auto ionet = GetTopSubConf(name, "IONetID", size_t);
             if (ionet >= m_ics.size())
             {
-                throw runtime_error("DRISC " + name + " set to connect to non-existent I/O interconnect");
+                throw runtime_error("LEON2MT " + name + " set to connect to non-existent I/O interconnect");
             }
 
             auto ioif = m_ioifs[ionet];
@@ -901,8 +901,8 @@ MGSystem::MGSystem(Config& config, bool quiet)
     // Connect processors in the link
     for (size_t i = 0; i < numProcessors; ++i)
     {
-        DRISC* prev = (i == 0)                 ? NULL : m_procs[i - 1];
-        DRISC* next = (i == numProcessors - 1) ? NULL : m_procs[i + 1];
+        LEON2MT prev = (i == 0)                 ? NULL : m_procs[i - 1];
+        LEON2MT next = (i == numProcessors - 1) ? NULL : m_procs[i + 1];
         m_procs[i]->ConnectLink(prev, next);
         if (next)
             RegisterModelRelation(*m_procs[i], *next, "link", true);
@@ -1037,7 +1037,7 @@ MGSystem::MGSystem(Config& config, bool quiet)
     }
 }
 
-MGSystem::~MGSystem()
+L2MTSystem::~L2MTSystem()
 {
     for (auto ioif : m_ioifs)
         delete ioif;

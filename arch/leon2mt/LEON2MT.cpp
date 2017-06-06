@@ -33,20 +33,20 @@ LEON2MT::LEON2MT(const std::string& name, Object& parent, Clock& clock, PID pid,
     m_threadTable ("threads",       *this),
     m_registerFile("registers",     *this, clock),
     m_raunit      ("rau",           *this, m_registerFile.GetSizes()),
-    m_tmu   ("tmu",         *this, clock),
+    m_tmu         ("tmu",           *this, clock),
     m_icache      ("icache",        *this, clock),
     m_dcache      ("dcache",        *this, clock),
     m_pipeline    ("pipeline",      *this, clock),
     m_network     ("network",       *this, clock, grid),
     m_mmio        ("mmio",          *this),
-    m_apr_file("aprs", *this),
-    m_asr_file("asrs", *this),
-    m_perfcounters(*this),
-    m_lpout("stdout", *this, std::cout),
-    m_lperr("stderr", *this, std::cerr),
-    m_mmu("mmu", *this),
-    m_action("action", *this),
-    m_io_if(NULL)
+    m_apr_file    ("aprs",          *this),
+    m_asr_file    ("asrs",          *this),
+    m_perfcounters(                 *this),
+    m_lpout       ("stdout",        *this, std::cout),
+    m_lperr       ("stderr",        *this, std::cerr),
+    m_mmu         ("mmu",           *this),
+    m_action      ("action",        *this),
+    m_io_if       (NULL)
 {
     RegisterModelProperty(*this, "pid", (uint32_t)pid);
     RegisterModelProperty(*this, "ic.assoc", (uint32_t)m_icache.GetAssociativity());
@@ -61,11 +61,21 @@ LEON2MT::LEON2MT(const std::string& name, Object& parent, Clock& clock, PID pid,
     RegisterModelProperty(*this, "fpregs", (uint32_t)m_registerFile.GetSizes()[RT_FLOAT]);
     RegisterModelProperty(*this, "freq", (uint32_t)clock.GetFrequency());
 
+    RegisterModelProperty(*this, "gw.max", (uint32_t)GIDX;
+    RegisterModelProperty(*this, "gh.max", (uint32_t)GIDX;
+    RegisterModelProperty(*this, "bw.max", (uint32_t)BIDX;
+    RegisterModelProperty(*this, "bh.max", (uint32_t)BIDX;
+
     // Get the size, in bits, of various identifiers.
     // This is used for packing and unpacking various fields.
     m_bits.pid_bits = ilog2(GetGridSize());
     m_bits.fid_bits = ilog2(m_familyTable.GetFamilies().size());
     m_bits.tid_bits = ilog2(m_threadTable.GetNumThreads());
+
+    m_bits.gw_bits  = LGIDX;
+    m_bits.gh_bits  = LGIDX;
+    m_bits.bw_bits  = LBIDX;
+    m_bits.bh_bits  = LBIDX;
 
     // Configure the MMIO interface for the common devices
     m_perfcounters.Connect(m_mmio, IOMatchUnit::READ);

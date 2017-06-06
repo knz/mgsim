@@ -64,18 +64,18 @@ Pipeline::PipeAction Pipeline::ExecuteStage::OnCycle()
         m_output.Rrc.type = RemoteMessage::MSG_NONE;
     }
 
-    // If we need to suspend on an operand, it'll be in Rav (by the Read Stage)
+    // If we need to suspend on an operand, it'll be in Rs1v (by the Read Stage)
     // In such a case, we must write them back, because they actually contain the
     // suspend information.
-    if (m_input.Rav.m_state != RST_FULL)
+    if (m_input.Rs1v.m_state != RST_FULL)
     {
         COMMIT
         {
-            // Write Rav (with suspend info) back to Rc.
+            // Write Rs1v (with suspend info) back to Rd.
             // The Remote Request information might contain a remote request
             // that will be send by the Writeback stage.
-            m_output.Rc  = m_input.Rc;
-            m_output.Rcv = m_input.Rav;
+            m_output.Rd  = m_input.Rd;
+            m_output.Rdv = m_input.Rs1v;
 
             // Force a thread switch
             m_output.swch    = true;
@@ -85,7 +85,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::OnCycle()
 
         DebugPipeWrite("F%u/T%u(%llu) %s suspend on non-full operand %s",
                        (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
-                       m_input.Rc.str().c_str());
+                       m_input.Rd.str().c_str());
 
         return PIPE_FLUSH;
     }
@@ -96,10 +96,10 @@ Pipeline::PipeAction Pipeline::ExecuteStage::OnCycle()
         m_output.pc = m_input.pc + sizeof(Instruction);
 
         // Copy input data and set some defaults
-        m_output.Rc          = m_input.Rc;
+        m_output.Rd          = m_input.Rd;
         m_output.suspend     = SUSPEND_NONE;
-        m_output.Rcv.m_state = RST_INVALID;
-        m_output.Rcv.m_size  = m_input.RcSize;
+        m_output.Rdv.m_state = RST_INVALID;
+        m_output.Rdv.m_size  = m_input.RdSize;
     }
 
     // Check for breakpoints
@@ -121,9 +121,9 @@ Pipeline::PipeAction Pipeline::ExecuteStage::OnCycle()
             }
         }
 
-        DebugPipeWrite("F%u/T%u(%llu) %s executed Rc %s Rcv %s",
+        DebugPipeWrite("F%u/T%u(%llu) %s executed Rd %s Rdv %s",
                        (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
-                       m_output.Rc.str().c_str(), m_output.Rcv.str(m_output.Rc.type).c_str());
+                       m_output.Rd.str().c_str(), m_output.Rdv.str(m_output.Rd.type).c_str());
     }
     else
     {
@@ -148,7 +148,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecBundle(MemAddr addr, bool indir
 
     if (reg != INVALID_REG_INDEX)
     {
-        COMMIT { m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);  }
+        COMMIT { m_output.Rdv = MAKE_PENDING_PIPEVALUE(m_input.RdSize);  }
     }
 
     return PIPE_CONTINUE;
@@ -221,7 +221,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecAllocate(PlaceID place, RegInde
         m_output.Rrc.allocate.parameter      = 0;
         m_output.Rrc.allocate.index          = 0;
 
-        m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);
+        m_output.Rdv = MAKE_PENDING_PIPEVALUE(m_input.RdSize);
     }
     return PIPE_CONTINUE;
 }
@@ -250,7 +250,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecCreate(const FID& fid, MemAddr 
             m_output.suspend = SUSPEND_MEMORY_BARRIER;
             m_output.swch    = true;
             m_output.kill    = false;
-            m_output.Rc      = INVALID_REG;
+            m_output.Rd      = INVALID_REG;
         }
         return PIPE_FLUSH;
     }
@@ -265,7 +265,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecCreate(const FID& fid, MemAddr 
         m_output.Rrc.create.completion_pid = GetLEON2MT().GetPID();
         m_output.Rrc.create.bundle         = false;
 
-        m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);
+        m_output.Rdv = MAKE_PENDING_PIPEVALUE(m_input.RdSize);
     }
 
     DebugFlowWrite("F%u/T%u(%llu) %s create CPU%u/F%u %s",
@@ -287,8 +287,8 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ReadFamilyRegister(RemoteRegType ki
         m_output.Rrc.famreg.addr = MAKE_REGADDR(type, reg);
 
         m_output.Rrc.famreg.value.m_state = RST_INVALID;
-        m_output.Rrc.famreg.completion_reg = m_output.Rc.index;
-        m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);
+        m_output.Rrc.famreg.completion_reg = m_output.Rd.index;
+        m_output.Rdv = MAKE_PENDING_PIPEVALUE(m_input.RdSize);
     }
     return PIPE_CONTINUE;
 }
@@ -303,17 +303,17 @@ Pipeline::PipeAction Pipeline::ExecuteStage::WriteFamilyRegister(RemoteRegType k
         m_output.Rrc.famreg.fid  = fid;
         m_output.Rrc.famreg.addr = MAKE_REGADDR(type, reg);
 
-        assert(m_input.Rbv.m_size == sizeof(Integer));
-        m_output.Rrc.famreg.value = PipeValueToRegValue(type, m_input.Rbv);
+        assert(m_input.Rs2v.m_size == sizeof(Integer));
+        m_output.Rrc.famreg.value = PipeValueToRegValue(type, m_input.Rs2v);
     }
     return PIPE_CONTINUE;
 }
 
 Pipeline::PipeAction Pipeline::ExecuteStage::ExecSync(const FID& fid)
 {
-    assert(m_input.Rc.type == RT_INTEGER);
+    assert(m_input.Rd.type == RT_INTEGER);
 
-    if (m_input.Rc.index == INVALID_REG_INDEX)
+    if (m_input.Rd.index == INVALID_REG_INDEX)
     {
         throw exceptf<InvalidArgumentException>(*this, "F%u/T%u(%llu) %s invalid target register for sync",
                                                 (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym);
@@ -322,8 +322,8 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecSync(const FID& fid)
     if (fid.pid == 0 && fid.lfid == 0 && fid.capability == 0)
     {
         COMMIT {
-            m_output.Rcv.m_integer = 0;
-            m_output.Rcv.m_state   = RST_FULL;
+            m_output.Rdv.m_integer = 0;
+            m_output.Rdv.m_state   = RST_FULL;
         }
     }
     else
@@ -333,9 +333,9 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecSync(const FID& fid)
         {
             m_output.Rrc.type                = RemoteMessage::MSG_SYNC;
             m_output.Rrc.sync.fid            = fid;
-            m_output.Rrc.sync.completion_reg = m_input.Rc.index;
+            m_output.Rrc.sync.completion_reg = m_input.Rd.index;
 
-            m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);
+            m_output.Rdv = MAKE_PENDING_PIPEVALUE(m_input.RdSize);
         }
         DebugFlowWrite("F%u/T%u(%llu) %s sync CPU%u/F%u",
                        (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,

@@ -1,19 +1,21 @@
 --- build-aux/config.sub.orig	2013-09-16 17:06:11.000000000 +0200
 +++ build-aux/config.sub	2013-09-16 17:08:11.000000000 +0200
-@@ -291,6 +291,8 @@
+@@ -291,6 +291,9 @@
  	| mn10200 | mn10300 \
  	| moxie \
  	| mt \
 +	| mtalpha \
 +	| mtsparc \
++	| leon2mt \
  	| msp430 \
  	| nds32 | nds32le | nds32be \
  	| nios | nios2 | nios2eb | nios2el \
-@@ -408,6 +410,8 @@
+@@ -408,6 +411,9 @@
  	| mipstx39-* | mipstx39el-* \
  	| mmix-* \
  	| mt-* \
 +	| mtalpha-* \
++	| leon2mt-* \
 +	| mtsparc-* \
  	| msp430-* \
  	| nds32-* | nds32le-* | nds32be-* \

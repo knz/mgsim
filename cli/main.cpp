@@ -4,7 +4,7 @@
 
 #include "simreadline.h"
 #include "commands.h"
-#include <arch/MGSystem.h>
+#include <arch/L2MTSystem.h>
 #include <sim/config.h>
 #include <sim/configparser.h>
 #include <sim/readfile.h>
@@ -263,7 +263,7 @@ void PrintFinalVariables(const Kernel& kernel, const ProgramConfig& cfg)
 }
 
 static
-void AtEnd(const MGSystem& sys, const ProgramConfig& cfg)
+void AtEnd(const L2MTSystem& sys, const ProgramConfig& cfg)
 {
     if (!cfg.m_quiet)
     {
@@ -295,7 +295,7 @@ int main(int argc, char** argv)
 
     ProgramConfig flags;
     UNIQUE_PTR<Config> config;
-    UNIQUE_PTR<MGSystem> sys;
+    UNIQUE_PTR<L2MTSystem> sys;
     UNIQUE_PTR<Monitor> mo;
 
     ////
@@ -420,7 +420,7 @@ int main(int argc, char** argv)
     try
     {
         // Create the system
-        sys.reset(new MGSystem(*config, !flags.m_interactive));
+        sys.reset(new L2MTSystem(*config, !flags.m_interactive));
     }
     catch (const exception& e)
     {

@@ -43,35 +43,43 @@ void TMU::UpdateStats()
     m_maxallocex = std::max(m_maxallocex, m_curallocex);
 }
 
+unsigned TMU::GetGlobalRegCount(MASK gmask) {
+  unsigned mask;
+  mask = gmask & 7;
+  switch (mask) {
+    case 0:
+      return 0;
+    case 7:
+      return 4;
+    case 6:
+      return 8;
+    case 4:
+      return 16;
+    default:
+      assert(false);
+  }
+}
+
 RegAddr TMU::GetRemoteRegisterAddress(LFID fid, RemoteRegType kind, const RegAddr& addr) const
 {
     auto& family = m_familyTable[fid];
     auto& regs   = family.regs[addr.type];
 
-    assert(family.state != FST_EMPTY);
+    assert(family.state != FST2_TERMINATED);
 
     RegIndex base;
     RegSize  size;
     switch (kind)
     {
         case RRT_GLOBAL:
-            base = regs.base + regs.size - regs.count.globals;
-            size = regs.count.globals;
+            base = regs.grb+regs.goff;
+            size = GetGlobalRegCount(family.gmask);
             break;
 
         case RRT_LAST_SHARED:
-            // Get the last allocated thread's shareds
-            assert(regs.last_shareds != INVALID_REG_INDEX);
-            base = regs.last_shareds;
-            size = regs.count.shareds;
-            break;
-
         case RRT_FIRST_DEPENDENT:
-            // Return the dependent address for the first thread in the family
-            // This is simply the base of the family's registers.
-            // This is the first allocated thread's dependents.
-            base = regs.base;
-            size = regs.count.shareds;
+            // No shared/dependent registers in LEON2-MT
+            assert(false);
             break;
 
         default:
@@ -107,17 +115,6 @@ TID TMU::GetRegisterType(LFID fid, RegAddr addr, RegClass* group, size_t *rel) c
                 return i;
             }
 
-            if (tregs.shareds != INVALID_REG_INDEX && addr.index >= tregs.shareds && addr.index < tregs.shareds + regs.count.shareds) {
-                *group = RC_SHARED;
-                *rel = addr.index - tregs.shareds;
-                return i;
-            }
-
-            if (tregs.dependents != INVALID_REG_INDEX && addr.index >= tregs.dependents && addr.index < tregs.dependents + regs.count.shareds) {
-                *group = RC_DEPENDENT;
-                *rel = addr.index - tregs.dependents;
-                return i;
-            }
         }
     }
 
@@ -341,13 +338,12 @@ bool TMU::AllocateThread(LFID fid, TID tid, bool isNewlyAllocated)
     thread->cid              = INVALID_CID;
     thread->pc               = family->pc;
     thread->family           = fid;
-    thread->index            = family->start;   // Administrative field, useful for debugging
+    thread->index            = (family->by << LBIDX) | family->bx;   // Administrative field, useful for debugging
     thread->nextInBlock      = INVALID_TID;
     thread->waitingForWrites = false;
     thread->next             = INVALID_TID;
 
     // Initialize dependencies
-    thread->dependencies.prevCleanedUp    = family->prevCleanedUp || !family->hasShareds || family->dependencies.numThreadsAllocated == 0 || family->physBlockSize == 1;
     thread->dependencies.killed           = false;
     thread->dependencies.numPendingWrites = 0;
 
@@ -703,16 +699,22 @@ FCapability TMU::InitializeFamily(LFID fid) const
         auto& family = m_familyTable[fid];
 
         family.capability    = capability;
-        family.legacy        = false;
-        family.start         = 0;
-        family.limit         = 1;
-        family.step          = 1;
+        family.bw            = 1;
+        family.bh            = 1;
+        family.gw            = 1;
+        family.gh            = 1;
         //family.virtBlockSize = 0;
-        family.physBlockSize = 0;
+        family.gmask         = 0;
+        family.grb           = 0;
+        family.goff          = 0;
+        family.htg_base      = INVALID_TID;
+        family.listener      = INVALID_TID;
         family.link          = INVALID_LFID;
+        family.dF            = false;
+        family.dT            = false;
+        family.dR            = false;
         family.sync.done     = false;
         family.sync.pid      = INVALID_PID;
-        family.hasShareds    = false;
         family.lastAllocated = INVALID_TID;
         family.prevCleanedUp = false;
         family.broken        = false;
@@ -721,7 +723,7 @@ FCapability TMU::InitializeFamily(LFID fid) const
         family.dependencies.allocationDone      = false;
         family.dependencies.numPendingReads     = 0;
         family.dependencies.numThreadsAllocated = 0;
-        family.dependencies.detached            = false;
+//        family.dependencies.detached            = false;
         family.dependencies.syncSent            = true;
     }
 
@@ -1806,7 +1808,6 @@ Result TMU::DoFamilyCreate()
 
             if(info.completion_reg == INVALID_REG_INDEX)
             {
-                family.dependencies.detached         = true;
                 family.dependencies.syncSent         = true;
             }
         }
@@ -2069,15 +2070,24 @@ void TMU::AllocateInitialFamily(MemAddr pc, bool legacy, PSize placeSize, SInteg
     InitializeFamily(fid);
 
     auto& family = m_familyTable[fid];
-    family.numCores      = 1;
     family.placeSize     = placeSize;
-    family.nThreads      = 1;
-    //family.virtBlockSize = 1;
-    family.physBlockSize = 1;
-    family.legacy        = legacy;
+    family.numCores      = 1;
+
     family.pc            = pc;
+    family.gmask         = 0;
+    family.htg_base      = 0;
+    family.listener      = INVALID_TID;
+    family.grb           = 0;
+    family.goff          = 0;
+    family.dF            = false;
+    family.dR            = false;
+    family.dT            = false;
+    family.bw            = 1;
+    family.bh            = 1;
+    family.gw            = 1;
+    family.gh            = 1;
+
     family.state         = FST_ACTIVE;
-    family.start         = startIndex;
 
     for (size_t i = 0; i < NUM_REG_TYPES; i++)
     {

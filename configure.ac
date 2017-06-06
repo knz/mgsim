@@ -426,6 +426,7 @@ MGS_TARGET_CHECK([mtsparc], [MTSPARC], [MT-SPARC], [mtsparc-linux-gnu], [mtsn_n]
 MGS_TARGET_CHECK([mips], [MIPS32], [MIPS (no MT)], [mips-linux-gnu], [mips_s])
 MGS_TARGET_CHECK([mipsel], [MIPS32EL], [MIPSel (no MT)], [mipsel-linux-gnu], [mipsel_s])
 MGS_TARGET_CHECK([or1k], [OR1K], [OpenRISC 1000 (no MT)], [or1knd-elf], [or1k_s])
+MGS_TARGET_CHECK([leon2mt], [LEON2MT], [LEON2-MT], [sparc-linux-gnu], [l2mt_n])
 
 if test $target_found = no; then
   AC_MSG_ERROR([Unsupported simulated core model: $target_cpu (did you use --target?)])
@@ -463,6 +464,7 @@ cat <<EOF
 *
 * MT-Alpha tests:         (asm) $enable_mtalpha_tests (compiled) $enable_compiled_mtalpha_tests
 * MT-SPARC tests:         (asm) $enable_mtsparc_tests (compiled) $enable_compiled_mtsparc_tests
+* LEON2-MT tests:         (asm) $enable_leon2mt_tests (compiled) $enable_compiled_leon2mt_tests
 * MIPS tests:             (asm) $enable_mips_tests (compiled) $enable_compiled_mips_tests
 * MIPSel tests:           (asm) $enable_mipsel_tests (compiled) $enable_compiled_mipsel_tests
 * OpenRISC tests:         (asm) $enable_or1k_tests (compiled) $enable_compiled_or1k_tests

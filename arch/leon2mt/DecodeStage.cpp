@@ -110,14 +110,14 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
         m_output.regs         = m_input.regs;
         m_output.placeSize    = m_input.placeSize;
         m_output.legacy       = m_input.legacy;
-        m_output.RaNotPending = false;
+        m_output.Rs1NotPending = false;
 
         try
         {
             // Default cases are just naturally-sized operations
-            m_output.RaSize = sizeof(Integer);
-            m_output.RbSize = sizeof(Integer);
-            m_output.RcSize = sizeof(Integer);
+            m_output.Rs1Size = sizeof(Integer);
+            m_output.Rs2Size = sizeof(Integer);
+            m_output.RdSize = sizeof(Integer);
 //#if defined(TARGET_MTSPARC)
             m_output.RsSize = sizeof(Integer);
 //#endif
@@ -131,9 +131,9 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
                            " lit %lu"
                            ,
                            (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
-                           m_output.Ra.str().c_str(),
-                           m_output.Rb.str().c_str(),
-                           m_output.Rc.str().c_str(),
+                           m_output.Rs1.str().c_str(),
+                           m_output.Rs2.str().c_str(),
+                           m_output.Rd.str().c_str(),
 //#if defined(TARGET_MTSPARC)
                            m_output.Rs.str().c_str(),
 //#endif
@@ -141,10 +141,10 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
                 );
 
             // Translate registers from window to full register file
-            m_output.Ra = TranslateRegister((unsigned char)m_output.Ra.index, m_output.Ra.type, m_output.RaSize, &m_output.RaIsLocal);
-            m_output.Rb = TranslateRegister((unsigned char)m_output.Rb.index, m_output.Rb.type, m_output.RbSize, &m_output.RbIsLocal);
+            m_output.Rs1 = TranslateRegister((unsigned char)m_output.Rs1.index, m_output.Rs1.type, m_output.Rs1Size, &m_output.Rs1IsLocal);
+            m_output.Rs2 = TranslateRegister((unsigned char)m_output.Rs2.index, m_output.Rs2.type, m_output.Rs2Size, &m_output.Rs2IsLocal);
             bool dummy;
-            m_output.Rc = TranslateRegister((unsigned char)m_output.Rc.index, m_output.Rc.type, m_output.RcSize, &dummy);
+            m_output.Rd = TranslateRegister((unsigned char)m_output.Rd.index, m_output.Rd.type, m_output.RdSize, &dummy);
 //#if defined(TARGET_MTSPARC)
             m_output.Rs = TranslateRegister((unsigned char)m_output.Rs.index, m_output.Rs.type, m_output.RsSize, &m_output.RsIsLocal);
 //#endif
@@ -166,9 +166,9 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
 //#endif
                    ,
                    (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
-                   m_output.Ra.str().c_str(),
-                   m_output.Rb.str().c_str(),
-                   m_output.Rc.str().c_str()
+                   m_output.Rs1.str().c_str(),
+                   m_output.Rs2.str().c_str(),
+                   m_output.Rd.str().c_str()
 //#if defined(TARGET_MTSPARC)
                    , m_output.Rs.str().c_str()
 //#endif

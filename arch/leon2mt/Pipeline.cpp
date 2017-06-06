@@ -68,13 +68,13 @@ Pipeline::Pipeline(const std::string&  name,
     m_stages[3].stage  = new ExecuteStage(*this, m_reLatch, m_emLatch);
     m_stages[3].input  = &m_reLatch;
     m_stages[3].output = &m_emLatch;
-    bypasses.push_back(BypassInfo(m_emLatch.empty, m_emLatch.Rc, m_emLatch.Rcv));
+    bypasses.push_back(BypassInfo(m_emLatch.empty, m_emLatch.Rd, m_emLatch.Rdv));
 
     // Create the Memory stage
     m_stages[4].stage  = new MemoryStage(*this, m_emLatch, m_mwLatch);
     m_stages[4].input  = &m_emLatch;
     m_stages[4].output = &m_mwLatch;
-    bypasses.push_back(BypassInfo(m_mwLatch.empty, m_mwLatch.Rc, m_mwLatch.Rcv));
+    bypasses.push_back(BypassInfo(m_mwLatch.empty, m_mwLatch.Rd, m_mwLatch.Rdv));
 
     // Create the dummy stages
     MemoryWritebackLatch* last_output = &m_mwLatch;
@@ -85,7 +85,7 @@ Pipeline::Pipeline(const std::string&  name,
         StageInfo& si = m_stages[j];
 
         MemoryWritebackLatch& output = m_dummyLatches[i];
-        bypasses.push_back(BypassInfo(output.empty, output.Rc, output.Rcv));
+        bypasses.push_back(BypassInfo(output.empty, output.Rd, output.Rdv));
 
         stringstream sname;
         sname << "dummy" << i;
@@ -100,7 +100,7 @@ Pipeline::Pipeline(const std::string&  name,
     m_stages.back().stage  = new WritebackStage(*this, *last_output);
     m_stages.back().input  = m_stages[m_stages.size() - 2].output;
     m_stages.back().output = NULL;
-    bypasses.push_back(BypassInfo(m_mwBypass.empty, m_mwBypass.Rc, m_mwBypass.Rcv));
+    bypasses.push_back(BypassInfo(m_mwBypass.empty, m_mwBypass.Rd, m_mwBypass.Rdv));
 
     m_stages[2].stage = new ReadStage(*this, m_drLatch, m_reLatch, bypasses);
 }
@@ -340,9 +340,9 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
              << " | Displacement: 0x" << setw(8) << m_drLatch.displacement
              << "   Literal:  0x" << setw(8) << m_drLatch.literal << endl
              << dec
-             << " | Ra:           " << m_drLatch.Ra << "/" << m_drLatch.RaSize << endl
-             << " | Rb:           " << m_drLatch.Rb << "/" << m_drLatch.RbSize << endl
-             << " | Rc:           " << m_drLatch.Rc << "/" << m_drLatch.RcSize << endl
+             << " | Rs1:           " << m_drLatch.Rs1 << "/" << m_drLatch.Rs1Size << endl
+             << " | Rs2:           " << m_drLatch.Rs2 << "/" << m_drLatch.Rs2Size << endl
+             << " | Rd:           " << m_drLatch.Rd << "/" << m_drLatch.RdSize << endl
 //#if defined(TARGET_MTSPARC)
              << " | Rs:           " << m_drLatch.Rs << "/" << m_drLatch.RsSize << endl
 //#endif
@@ -370,9 +370,9 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
              << "         Function:     0x" << setw(4) << m_reLatch.function << endl
 //#endif
              << " | Displacement: 0x" << setw(8) << m_reLatch.displacement << endl
-             << " | Rav:          " << MakePipeValue(m_reLatch.Ra.type, m_reLatch.Rav) << "/" << m_reLatch.Rav.m_size << endl
-             << " | Rbv:          " << MakePipeValue(m_reLatch.Rb.type, m_reLatch.Rbv) << "/" << m_reLatch.Rbv.m_size << endl
-             << " | Rc:           " << m_reLatch.Rc << "/" << m_reLatch.RcSize << endl;
+             << " | Rs1v:          " << MakePipeValue(m_reLatch.Rs1.type, m_reLatch.Rs1v) << "/" << m_reLatch.Rs1v.m_size << endl
+             << " | Rs2v:          " << MakePipeValue(m_reLatch.Rs2.type, m_reLatch.Rs2v) << "/" << m_reLatch.Rs2v.m_size << endl
+             << " | Rd:           " << m_reLatch.Rd << "/" << m_reLatch.RdSize << endl;
     }
     out << " v" << endl;
 
@@ -385,8 +385,8 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
     else
     {
         PrintLatchCommon(out, m_emLatch);
-        out << " | Rc:        " << m_emLatch.Rc << "/" << m_emLatch.Rcv.m_size << endl
-            << " | Rcv:       " << MakePipeValue(m_emLatch.Rc.type, m_emLatch.Rcv) << endl;
+        out << " | Rd:        " << m_emLatch.Rd << "/" << m_emLatch.Rdv.m_size << endl
+            << " | Rdv:       " << MakePipeValue(m_emLatch.Rd.type, m_emLatch.Rdv) << endl;
         if (m_emLatch.size == 0)
         {
             // No memory operation
@@ -396,7 +396,7 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
         }
         else
         {
-            out << " | Operation: " << (m_emLatch.Rcv.m_state == RST_FULL ? "Store" : "Load") << endl
+            out << " | Operation: " << (m_emLatch.Rdv.m_state == RST_FULL ? "Store" : "Load") << endl
                 << " | Address:   0x" << hex << setw(sizeof(MemAddr) * 2) << setfill('0') << m_emLatch.address
                 << " " << GetLEON2MT().GetSymbolTable()[m_emLatch.address] << endl
                 << " | Size:      " << dec << m_emLatch.size << " bytes" << endl;
@@ -417,8 +417,8 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
         else
         {
             PrintLatchCommon(out, *latch);
-            out << " | Rc:  " << latch->Rc << "/" << latch->Rcv.m_size << endl
-                << " | Rcv: " << MakePipeValue(latch->Rc.type, latch->Rcv) << endl;
+            out << " | Rd:  " << latch->Rd << "/" << latch->Rdv.m_size << endl
+                << " | Rdv: " << MakePipeValue(latch->Rd.type, latch->Rdv) << endl;
         }
         out << " v" << endl;
 
