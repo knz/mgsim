@@ -321,7 +321,7 @@ namespace Simulator
     bool Kernel::UpdateStorages()
     {
         bool updated = false;
-        for (Clock* clock = m_activeClocks; clock != NULL && m_cycle == clock->m_cycle; clock = clock->m_next)
+        for (Clock* clock = m_activeClocks; clock != NULL && ((m_cycle == clock->m_cycle)||(!m_cycle)); clock = clock->m_next)
         {
             for (Storage *s = clock->m_activeStorages; s != NULL; s = s->GetNext())
             {
