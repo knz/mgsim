@@ -102,7 +102,7 @@ namespace Simulator
                           Object& parent, Clock& clock, size_t sz)
             : Object(name, parent),
               m_down_peer(0), m_up_peer(0),
-              m_fifo("b_fifo", *this, clock, sz),
+              m_fifo("b_fifo", *this, clock, sz, sz),
               p(*this, "p_proc", delegate::create<BufferedConnector<T>, &BufferedConnector<T>::OnCycle>(*this))
 	{
             m_fifo.Sensitive(p);

@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         (void)cons;
         (void)prod;
     }
-    if (demo == "prodcons2")
+    else if (demo == "prodcons2")
     {
 	size_t f1 = 1, f2 = 1, sz = 0;
 	if (argc > 3)
