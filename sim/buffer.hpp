@@ -87,9 +87,6 @@ namespace Simulator
         assert(min_space >= 1);
         if (m_maxPushes != 1)
         {
-            // We only support buffers with multiple pushes if the
-            // buffer and the pushers are in the same clock domain.
-            CheckClocks();
             assert(m_pushes < m_maxPushes);
         }
         else if (m_pushes == 1)

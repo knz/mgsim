@@ -131,6 +131,15 @@ namespace Simulator
                 // We start each cycle being idle, and see if we did something this cycle
                 idle = true;
 
+                // Process the requested storage updates
+                // This can activate or deactivate processes due to changes in storages
+                // made by processes run in this cycle.
+                if (UpdateStorages())
+                {
+                    // We've update at least one storage
+                    idle = false;
+                }
+
                 //
                 // Acquire phase
                 //
@@ -216,15 +225,6 @@ namespace Simulator
                             }
                         }
                     }
-                }
-
-                // Process the requested storage updates
-                // This can activate or deactivate processes due to changes in storages
-                // made by processes run in this cycle.
-                if (UpdateStorages())
-                {
-                    // We've update at least one storage
-                    idle = false;
                 }
 
                 if (idle)

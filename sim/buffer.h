@@ -17,7 +17,7 @@ namespace Simulator
     {
         // Maximum for m_maxPushes
         // In hardware it can be possible to support multiple pushes
-        static const size_t MAX_PUSHES = 4;
+        static const size_t MAX_PUSHES = 512;
 
         const size_t  m_maxSize;             ///< Maximum size of this buffer
         const size_t  m_maxPushes;           ///< Maximum number of pushes at a cycle
