@@ -1,7 +1,10 @@
 #include <svp/testoutput.h>
 #include <svp/delegate.h>
+#include <svp/abort.h>
 
-sl_def(foo, , sl_shparm(int, x)) 
+#include "../abort_hack.h"
+
+sl_def(foo, , sl_shparm(int, x))
 {
     sl_setp(x, sl_getp(x) + 1);
 } 

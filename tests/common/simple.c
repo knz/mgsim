@@ -10,6 +10,7 @@
 #include <errno.h>
 
 #include "mtconf.h"
+#include "abort_hack.h"
 
 char buf[123] = { 0 };
 

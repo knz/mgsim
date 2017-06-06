@@ -1,6 +1,8 @@
 #include <svp/testoutput.h>
 #include <svp/delegate.h>
 
+#include "../abort_hack.h"
+
 #define SAMPLES 200
 int indices[SAMPLES];
 

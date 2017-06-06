@@ -5,6 +5,7 @@
 
 #include "mtconf.h"
 #include "gfxlib.h"
+#include "abort_hack.h"
 
 const char *testconf = "\0PLACES: 1"; // for "make check": this program is single-threaded.
 
