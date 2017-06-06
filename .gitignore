@@ -19,3 +19,4 @@ config.status
 *.orig
 *#*#
 sys_config.h.in
+nbproject
