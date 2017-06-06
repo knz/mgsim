@@ -6,7 +6,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 /*

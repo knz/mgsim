@@ -1,5 +1,5 @@
 #include "ThreadTable.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/symtable.h>
 #include <sim/config.h>
 #include <sim/range.h>
@@ -11,10 +11,10 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-ThreadTable::ThreadTable(const std::string& name, DRISC& parent)
+ThreadTable::ThreadTable(const std::string& name, LEON2MT& parent)
   : Object(name, parent),
     m_empty(0),
     m_threads(GetConf("NumEntries", size_t)),
@@ -207,8 +207,8 @@ void ThreadTable::Cmd_Read(ostream& out, const vector<string>& arguments) const
         }
     }
 
-    // Change the following if DRISC is not a direct parent any more
-    auto& parent = GetDRISC();
+    // Change the following if LEON2MT is not a direct parent any more
+    auto& parent = GetLEON2MT();
     SymbolTable& symtable = parent.GetSymbolTable();
 
     if (tids.empty())

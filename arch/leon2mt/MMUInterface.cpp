@@ -1,12 +1,12 @@
 #include "MMUInterface.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <programs/mgsim.h>
 
 #include <iomanip>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 /*
@@ -48,7 +48,7 @@ Result MMUInterface::Write(MemAddr address, const void *data, MemSize size, LFID
                  (unsigned)cmd, (unsigned long long)req_size);
 
     COMMIT{
-        auto& cpu = GetDRISC();
+        auto& cpu = GetLEON2MT();
 
         switch(cmd)
         {

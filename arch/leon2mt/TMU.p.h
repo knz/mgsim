@@ -1,6 +1,6 @@
 // -*- c++ -*-
-#ifndef ALLOCATOR_H
-#define ALLOCATOR_H
+#ifndef TMU_H
+#define TMU_H
 
 #include <sim/kernel.h>
 #include <sim/inspect.h>
@@ -9,12 +9,12 @@
 #include <arch/simtypes.h>
 #include <arch/Memory.h>
 
-#include <arch/drisc/forward.h>
-#include <arch/drisc/ThreadTable.h>
+#include <arch/leon2mt/forward.h>
+#include <arch/leon2mt/ThreadTable.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 // A list of dependencies that prevent a family from being
@@ -38,9 +38,9 @@ enum ThreadDependency
     THREADDEP_TERMINATED,           // Thread has terminated
 };
 
-class Allocator : public Object, public Inspect::Interface<Inspect::Read>
+class TMU : public Object, public Inspect::Interface<Inspect::Read>
 {
-    friend class Simulator::DRISC;
+    friend class Simulator::LEON2MT;
     friend class IOBusInterface;
     friend class Pipeline;
 
@@ -71,7 +71,6 @@ public:
     enum CreateState
     {
         CREATE_INITIAL,             // Waiting for a family to create
-        CREATE_LOAD_REGSPEC,        // Load program code to look for register window specification
         CREATE_LOADING_LINE,        // Waiting until the cache-line is loaded
         CREATE_LINE_LOADED,         // The line has been loaded
         CREATE_RESTRICTING,         // Check family property and restrict if necessary
@@ -97,9 +96,9 @@ public:
         BUNDLE_LINE_LOADED,         // The line has been loaded
     };
 
-    Allocator(const std::string& name, DRISC& parent, Clock& clock);
-    Allocator(const Allocator&) = delete;
-    Allocator& operator=(const Allocator&) = delete;
+    TMU(const std::string& name, LEON2MT& parent, Clock& clock);
+    TMU(const TMU&) = delete;
+    TMU& operator=(const TMU&) = delete;
 
     // Allocates the initial family consisting of a single thread on the first CPU.
     // Typically called before tha actual simulation starts.
@@ -188,7 +187,7 @@ private:
     void Push(ThreadQueue& queue, TID tid);
     TID  Pop (ThreadQueue& queue);
 
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
     FamilyTable&  m_familyTable;
     ThreadTable&  m_threadTable;
     RegisterFile& m_registerFile;

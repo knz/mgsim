@@ -1,5 +1,5 @@
-#include <arch/drisc/DCache.h>
-#include <arch/drisc/DRISC.h>
+#include <arch/leon2mt/DCache.h>
+#include <arch/leon2mt/LEON2MT.h>
 #include <sim/log2.h>
 #include <sim/config.h>
 #include <sim/sampling.h>
@@ -13,10 +13,10 @@ using namespace std;
 namespace Simulator
 {
 
-namespace drisc
+namespace leon2mt
 {
 
-DCache::DCache(const std::string& name, DRISC& parent, Clock& clock)
+DCache::DCache(const std::string& name, LEON2MT& parent, Clock& clock)
 :   Object(name, parent),
     m_memory(NULL),
     m_mcid(0),
@@ -156,14 +156,14 @@ Result DCache::FindLine(MemAddr address, Line* &line, bool check_only)
         }
     }
 
-    // The line could not be found, allocate the empty line or replace an existing line
+    // The line could not be found, tmuate the empty line or replace an existing line
     line = (empty != NULL) ? empty : replace;
     if (line == NULL)
     {
         // No available line
         if (!check_only)
         {
-            DeadlockWrite("Unable to allocate a free cache-line in set %u", (unsigned)(set / m_assoc) );
+            DeadlockWrite("Unable to tmuate a free cache-line in set %u", (unsigned)(set / m_assoc) );
         }
         return FAILED;
     }
@@ -203,7 +203,7 @@ Result DCache::Read(MemAddr address, void* data, MemSize size, RegAddr* reg)
 #endif
 
     // Check that we're reading readable memory
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     if (!cpu.CheckPermissions(address, size, IMemory::PERM_READ))
     {
         throw exceptf<SecurityException>(*this, "Read (%#016llx, %zd): Attempting to read from non-readable memory",
@@ -221,8 +221,8 @@ Result DCache::Read(MemAddr address, void* data, MemSize size, RegAddr* reg)
     Line*  line;
     Result result;
     // SUCCESS - A line with the address was found
-    // DELAYED - The line with the address was not found, but a line has been allocated
-    // FAILED  - No usable line was found at all and could not be allocated
+    // DELAYED - The line with the address was not found, but a line has been tmuated
+    // FAILED  - No usable line was found at all and could not be tmuated
     if ((result = FindLine(address - offset, line, false)) == FAILED)
     {
         // Cache-miss and no free line
@@ -236,7 +236,7 @@ Result DCache::Read(MemAddr address, void* data, MemSize size, RegAddr* reg)
 
     if (result == DELAYED)
     {
-        // A new line has been allocated; send the request to memory
+        // A new line has been tmuated; send the request to memory
         Request request;
         request.write     = false;
         request.address   = address - offset;
@@ -336,7 +336,7 @@ Result DCache::Write(MemAddr address, void* data, MemSize size, LFID fid, TID ti
 #endif
 
     // Check that we're writing writable memory
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     if (!cpu.CheckPermissions(address, size, IMemory::PERM_WRITE))
     {
         throw exceptf<SecurityException>(*this, "Write (%#016llx, %zd): Attempting to write to non-writable memory",
@@ -578,8 +578,8 @@ Result DCache::DoReadResponses()
     if (line.create)
     {
         DebugMemWrite("Signalling read completion to creation process");
-        auto& alloc = GetDRISC().GetAllocator();
-        alloc.OnDCachelineLoaded(line.data);
+        auto& tmu = GetLEON2MT().GetTMU();
+        tmu.OnDCachelineLoaded(line.data);
         COMMIT { line.create = false; }
     }
 
@@ -622,7 +622,7 @@ Result DCache::DoReadWritebacks()
         state.next = req.waiting;
     }
 
-    auto& regFile = GetDRISC().GetRegisterFile();
+    auto& regFile = GetLEON2MT().GetRegisterFile();
 
     if (state.offset == state.size)
     {
@@ -723,8 +723,8 @@ Result DCache::DoReadWritebacks()
     if (state.offset == state.size)
     {
         // This operand is now fully written
-        auto& alloc = GetDRISC().GetAllocator();
-        if (!alloc.DecreaseFamilyDependency(state.fid, FAMDEP_OUTSTANDING_READS))
+        auto& tmu = GetLEON2MT().GetTMU();
+        if (!tmu.DecreaseFamilyDependency(state.fid, FAMDEP_OUTSTANDING_READS))
         {
             DeadlockWrite("Unable to decrement outstanding reads on F%u", (unsigned)state.fid);
             return FAILED;
@@ -752,8 +752,8 @@ Result DCache::DoWriteResponses()
     assert(!m_write_responses.Empty());
     auto& response = m_write_responses.Front();
 
-    auto& alloc = GetDRISC().GetAllocator();
-    if (!alloc.DecreaseThreadDependency((TID)response.wid, THREADDEP_OUTSTANDING_WRITES))
+    auto& tmu = GetLEON2MT().GetTMU();
+    if (!tmu.DecreaseThreadDependency((TID)response.wid, THREADDEP_OUTSTANDING_WRITES))
     {
         DeadlockWrite("Unable to decrease outstanding writes on T%u", (unsigned)response.wid);
         return FAILED;
@@ -813,7 +813,7 @@ void DCache::Cmd_Info(std::ostream& out, const std::vector<std::string>& /*argum
 
 void DCache::Cmd_Read(std::ostream& out, const std::vector<std::string>& arguments) const
 {
-    auto& regFile = GetDRISC().GetRegisterFile();
+    auto& regFile = GetLEON2MT().GetRegisterFile();
 
     if (arguments.empty())
     {

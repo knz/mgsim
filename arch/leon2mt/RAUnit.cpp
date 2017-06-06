@@ -11,7 +11,7 @@ using namespace std;
 namespace Simulator
 {
 
-namespace drisc {
+namespace leon2mt {
 
 RAUnit::RAUnit(const string& name, Object& parent, const array<RegSize, NUM_REG_TYPES>& sizes)
     : Object(name, parent)

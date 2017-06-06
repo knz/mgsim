@@ -1,5 +1,5 @@
-#include <arch/drisc/Allocator.h>
-#include <arch/drisc/DRISC.h>
+#include <arch/leon2mt/TMU.h>
+#include <arch/leon2mt/LEON2MT.h>
 #include <sim/config.h>
 #include <sim/sampling.h>
 #include <arch/symtable.h>
@@ -12,7 +12,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 /// String representation for the AllocationType enumeration
@@ -24,14 +24,14 @@ constexpr const int MaxRegs[] = {
     /* RT_INTEGER */
     31,
     /* RT_FLOAT */
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
     32
-#else
-    31
-#endif
+//#else
+//    31
+//#endif
 };
 
-void Allocator::UpdateStats()
+void TMU::UpdateStats()
 {
     CycleNo cycle = GetKernel()->GetCycleNo();
     CycleNo elapsed = cycle - m_lastcycle;
@@ -43,7 +43,7 @@ void Allocator::UpdateStats()
     m_maxallocex = std::max(m_maxallocex, m_curallocex);
 }
 
-RegAddr Allocator::GetRemoteRegisterAddress(LFID fid, RemoteRegType kind, const RegAddr& addr) const
+RegAddr TMU::GetRemoteRegisterAddress(LFID fid, RemoteRegType kind, const RegAddr& addr) const
 {
     auto& family = m_familyTable[fid];
     auto& regs   = family.regs[addr.type];
@@ -81,7 +81,7 @@ RegAddr Allocator::GetRemoteRegisterAddress(LFID fid, RemoteRegType kind, const 
 }
 
 // Administrative function for getting a register's type and thread mapping
-TID Allocator::GetRegisterType(LFID fid, RegAddr addr, RegClass* group, size_t *rel) const
+TID TMU::GetRegisterType(LFID fid, RegAddr addr, RegClass* group, size_t *rel) const
 {
     auto& family = m_familyTable[fid];
     auto& regs = family.regs[addr.type];
@@ -126,7 +126,7 @@ TID Allocator::GetRegisterType(LFID fid, RegAddr addr, RegClass* group, size_t *
     return INVALID_TID;
 }
 
-bool Allocator::QueueActiveThreads(const ThreadQueue& threads)
+bool TMU::QueueActiveThreads(const ThreadQueue& threads)
 {
     if (!p_activeThreads.Invoke())
     {
@@ -143,7 +143,7 @@ bool Allocator::QueueActiveThreads(const ThreadQueue& threads)
     return true;
 }
 
-TID Allocator::PopActiveThread()
+TID TMU::PopActiveThread()
 {
     TID tid = INVALID_TID;
     if (!m_activeThreads.Empty())
@@ -160,7 +160,7 @@ TID Allocator::PopActiveThread()
 // There is assumed to be a linked list between the threads.head
 // and threads.tail thread by Thread::nextState.
 //
-bool Allocator::QueueThreads(ThreadList& list, const ThreadQueue& threads, ThreadState state)
+bool TMU::QueueThreads(ThreadList& list, const ThreadQueue& threads, ThreadState state)
 {
     assert(threads.head != INVALID_TID);
     assert(threads.tail != INVALID_TID);
@@ -192,10 +192,10 @@ bool Allocator::QueueThreads(ThreadList& list, const ThreadQueue& threads, Threa
 // This is called by various components (RegisterFile, Pipeline, ...) to
 // add the threads to the ready queue.
 //
-bool Allocator::ActivateThreads(const ThreadQueue& threads)
+bool TMU::ActivateThreads(const ThreadQueue& threads)
 {
     ThreadList* list;
-    if (GetDRISC().GetPipeline().IsPipelineProcessActive())
+    if (GetLEON2MT().GetPipeline().IsPipelineProcessActive())
     {
         // Request comes from the pipeline, use the first list
         list = &m_readyThreadsPipe;
@@ -203,7 +203,7 @@ bool Allocator::ActivateThreads(const ThreadQueue& threads)
     else
     {
         // Request comes from something else, arbitrate and use the second list
-        // Something else = either Allocator (DoThreadAllocate), DCache (DoWriteResponses)
+        // Something else = either TMU (DoThreadAllocate), DCache (DoWriteResponses)
         // or other processes via RegisterFile::WriteRegister
         if (!p_readyThreads.Invoke())
         {
@@ -228,7 +228,7 @@ bool Allocator::ActivateThreads(const ThreadQueue& threads)
 // cleanup queue should it also be marked for cleanup.
 // Called from the pipeline
 //
-bool Allocator::KillThread(TID tid)
+bool TMU::KillThread(TID tid)
 {
     auto& thread = m_threadTable[tid];
     assert(thread.state == TST_RUNNING);
@@ -258,7 +258,7 @@ bool Allocator::KillThread(TID tid)
 // Reschedules the thread at the specified PC.
 // Called from the pipeline.
 //
-bool Allocator::RescheduleThread(TID tid, MemAddr pc)
+bool TMU::RescheduleThread(TID tid, MemAddr pc)
 {
     auto& thread = m_threadTable[tid];
     assert(thread.state == TST_RUNNING);
@@ -286,7 +286,7 @@ bool Allocator::RescheduleThread(TID tid, MemAddr pc)
 
     DebugSimWrite("F%u/T%u(%llu) rescheduling to %s",
                   (unsigned)thread.family, (unsigned)tid, (unsigned long long)thread.index,
-                  GetDRISC().GetSymbolTable()[pc].c_str());
+                  GetLEON2MT().GetSymbolTable()[pc].c_str());
     return true;
 }
 
@@ -294,7 +294,7 @@ bool Allocator::RescheduleThread(TID tid, MemAddr pc)
 // Suspends the thread at the specific PC.
 // Called from the pipeline.
 //
-bool Allocator::SuspendThread(TID tid, MemAddr pc)
+bool TMU::SuspendThread(TID tid, MemAddr pc)
 {
     auto& thread = m_threadTable[tid];
     assert(thread.state == TST_RUNNING);
@@ -318,7 +318,7 @@ bool Allocator::SuspendThread(TID tid, MemAddr pc)
 // @isNew indicates if this a new thread for the family, or a recycled
 // cleaned up one
 //
-bool Allocator::AllocateThread(LFID fid, TID tid, bool isNewlyAllocated)
+bool TMU::AllocateThread(LFID fid, TID tid, bool isNewlyAllocated)
 {
     // Work on a copy unless we're committing
     Family tmp_family; Family* family = &tmp_family;
@@ -385,7 +385,7 @@ bool Allocator::AllocateThread(LFID fid, TID tid, bool isNewlyAllocated)
     COMMIT
     {
         // Reserve the memory (commits on use)
-        auto& cpu = GetDRISC();
+        auto& cpu = GetLEON2MT();
         const MemAddr tls_base = cpu.GetTLSAddress(fid, tid);
         const MemSize tls_size = cpu.GetTLSSize();
         cpu.MapMemory(tls_base+tls_size/2, tls_size/2);
@@ -488,12 +488,12 @@ bool Allocator::AllocateThread(LFID fid, TID tid, bool isNewlyAllocated)
     return true;
 }
 
-bool Allocator::DecreaseFamilyDependency(LFID fid, FamilyDependency dep)
+bool TMU::DecreaseFamilyDependency(LFID fid, FamilyDependency dep)
 {
     return DecreaseFamilyDependency(fid, m_familyTable[fid], dep);
 }
 
-bool Allocator::DecreaseFamilyDependency(LFID fid, Family& family, FamilyDependency dep)
+bool TMU::DecreaseFamilyDependency(LFID fid, Family& family, FamilyDependency dep)
 {
     assert(family.state != FST_EMPTY);
 
@@ -597,13 +597,13 @@ bool Allocator::DecreaseFamilyDependency(LFID fid, Family& family, FamilyDepende
     return true;
 }
 
-bool Allocator::OnMemoryRead(LFID fid)
+bool TMU::OnMemoryRead(LFID fid)
 {
     COMMIT{ m_familyTable[fid].dependencies.numPendingReads++; }
     return true;
 }
 
-bool Allocator::DecreaseThreadDependency(TID tid, ThreadDependency dep)
+bool TMU::DecreaseThreadDependency(TID tid, ThreadDependency dep)
 {
     // We work on a copy unless we're committing
     Thread::Dependencies tmp_deps;
@@ -652,7 +652,7 @@ bool Allocator::DecreaseThreadDependency(TID tid, ThreadDependency dep)
     return true;
 }
 
-bool Allocator::IncreaseThreadDependency(TID tid, ThreadDependency dep)
+bool TMU::IncreaseThreadDependency(TID tid, ThreadDependency dep)
 {
     COMMIT
     {
@@ -668,7 +668,7 @@ bool Allocator::IncreaseThreadDependency(TID tid, ThreadDependency dep)
     return true;
 }
 
-Family& Allocator::GetFamilyChecked(LFID fid, FCapability capability) const
+Family& TMU::GetFamilyChecked(LFID fid, FCapability capability) const
 {
     if (fid >= m_familyTable.GetFamilies().size())
     {
@@ -693,10 +693,10 @@ Family& Allocator::GetFamilyChecked(LFID fid, FCapability capability) const
 }
 
 // Initializes the family entry with default values.
-FCapability Allocator::InitializeFamily(LFID fid) const
+FCapability TMU::InitializeFamily(LFID fid) const
 {
     // Capability + FID + PID must fit in an integer word
-    FCapability capability = GetDRISC().GenerateFamilyCapability();
+    FCapability capability = GetLEON2MT().GenerateFamilyCapability();
 
     COMMIT
     {
@@ -728,14 +728,14 @@ FCapability Allocator::InitializeFamily(LFID fid) const
     return capability;
 }
 
-bool Allocator::IsContextAvailable(ContextType type) const
+bool TMU::IsContextAvailable(ContextType type) const
  {
     return m_raunit     .GetNumFreeContexts(type) > 0 &&
            m_threadTable.GetNumFreeThreads(type)  > 0 &&
            m_familyTable.GetNumFreeFamilies(type) > 0;
 }
 
-bool Allocator::ActivateFamily(LFID fid)
+bool TMU::ActivateFamily(LFID fid)
 {
     if (!p_alloc.Invoke())
     {
@@ -760,7 +760,7 @@ bool Allocator::ActivateFamily(LFID fid)
     return true;
 }
 
-bool Allocator::AllocateRegisters(LFID fid, ContextType type)
+bool TMU::AllocateRegisters(LFID fid, ContextType type)
 {
     // Try to allocate registers
     auto& family = m_familyTable[fid];
@@ -827,7 +827,7 @@ bool Allocator::AllocateRegisters(LFID fid, ContextType type)
     return false;
 }
 
-bool Allocator::OnICachelineLoaded(CID cid)
+bool TMU::OnICachelineLoaded(CID cid)
 {
     assert(!m_creates.Empty());
     COMMIT{
@@ -837,7 +837,7 @@ bool Allocator::OnICachelineLoaded(CID cid)
     return true;
 }
 
-bool Allocator::OnDCachelineLoaded(char* data)
+bool TMU::OnDCachelineLoaded(char* data)
 {
     assert(!m_bundle.Empty());
     COMMIT {
@@ -850,7 +850,7 @@ bool Allocator::OnDCachelineLoaded(char* data)
     return true;
 }
 
-Result Allocator::DoThreadAllocate()
+Result TMU::DoThreadAllocate()
 {
     //
     // Cleanup (reallocation) takes precedence over initial allocation
@@ -901,7 +901,7 @@ Result Allocator::DoThreadAllocate()
         COMMIT
         {
             // Unreserve the TLS memory
-            auto& cpu = GetDRISC();
+            auto& cpu = GetLEON2MT();
             const MemAddr tls_base = cpu.GetTLSAddress(fid, tid);
             const MemSize tls_size = cpu.GetTLSSize();
             cpu.UnmapMemory(tls_base+tls_size/2, tls_size/2);
@@ -983,7 +983,7 @@ Result Allocator::DoThreadAllocate()
 }
 
 
-bool Allocator::QueueBundle(const MemAddr addr, Integer parameter, RegIndex completion_reg)
+bool TMU::QueueBundle(const MemAddr addr, Integer parameter, RegIndex completion_reg)
 {
     BundleInfo info;
     info.addr           = addr;
@@ -1004,7 +1004,7 @@ bool Allocator::QueueBundle(const MemAddr addr, Integer parameter, RegIndex comp
 
 
 /// Queues an allocation request for a family entry and context
-bool Allocator::QueueFamilyAllocation(const RemoteMessage& msg)
+bool TMU::QueueFamilyAllocation(const RemoteMessage& msg)
 {
     // Can't be balanced; that should have been handled by
     // the network before it gets here.
@@ -1045,7 +1045,7 @@ bool Allocator::QueueFamilyAllocation(const RemoteMessage& msg)
 }
 
 /// Queues an allocation request for a family entry and context
-bool Allocator::QueueFamilyAllocation(const LinkMessage& msg)
+bool TMU::QueueFamilyAllocation(const LinkMessage& msg)
 {
     // Place the request in the appropriate buffer
     Buffer<AllocRequest>& allocations = (msg.allocate.suspend ? m_allocRequestsSuspend : m_allocRequestsNoSuspend);
@@ -1072,19 +1072,19 @@ bool Allocator::QueueFamilyAllocation(const LinkMessage& msg)
     DebugSimWrite("accepted link allocation for %u cores (exact: %s) for CPU%u/R%04x first CPU%u/F%u prev CPU%u/F%u",
                   (unsigned)msg.allocate.size, msg.allocate.exact ? "yes" : "no",
                   (unsigned)request.completion_pid, (unsigned)request.completion_reg,
-                  (unsigned)(GetDRISC().GetPID() & ~(request.placeSize-1)), (unsigned)request.first_fid,
-                  (unsigned)(GetDRISC().GetPID() - 1), (unsigned)request.prev_fid);
+                  (unsigned)(GetLEON2MT().GetPID() & ~(request.placeSize-1)), (unsigned)request.first_fid,
+                  (unsigned)(GetLEON2MT().GetPID() - 1), (unsigned)request.prev_fid);
     return true;
 }
 
-void Allocator::ReleaseContext(LFID fid)
+void TMU::ReleaseContext(LFID fid)
 {
     m_familyTable.FreeFamily(fid, CONTEXT_NORMAL);
     m_raunit.UnreserveContext();
     m_threadTable.UnreserveThread();
 }
 
-LFID Allocator::AllocateContext(ContextType type, LFID prev_fid, PSize placeSize)
+LFID TMU::AllocateContext(ContextType type, LFID prev_fid, PSize placeSize)
 {
     if (!IsContextAvailable(type))
     {
@@ -1119,7 +1119,7 @@ LFID Allocator::AllocateContext(ContextType type, LFID prev_fid, PSize placeSize
     return lfid;
 }
 
-Result Allocator::DoFamilyAllocate()
+Result TMU::DoFamilyAllocate()
 {
     // Pick an allocation queue to allocate from:
     // If we can do an exclusive allocate, we do those first.
@@ -1189,7 +1189,7 @@ Result Allocator::DoFamilyAllocate()
             msg.rawreg.pid             = req.completion_pid;
             msg.rawreg.addr            = MAKE_REGADDR(RT_INTEGER, req.completion_reg);
             msg.rawreg.value.m_state   = RST_FULL;
-            msg.rawreg.value.m_integer = GetDRISC().PackFID(fid);
+            msg.rawreg.value.m_integer = GetLEON2MT().PackFID(fid);
 
             if (!m_network.SendMessage(msg))
             {
@@ -1221,7 +1221,7 @@ Result Allocator::DoFamilyAllocate()
         }
     }
     // Allocation succeeded
-    else if (req.type == ALLOCATE_SINGLE || (GetDRISC().GetPID() + 1) % req.placeSize == 0)
+    else if (req.type == ALLOCATE_SINGLE || (GetLEON2MT().GetPID() + 1) % req.placeSize == 0)
     {
         // We've grabbed the last context that we wanted in the place
         auto& family = m_familyTable[lfid];
@@ -1245,7 +1245,7 @@ Result Allocator::DoFamilyAllocate()
                 // We're the only core in the family
                 // Construct a global FID for this family
                 FID fid;
-                fid.pid        = GetDRISC().GetPID();
+                fid.pid        = GetLEON2MT().GetPID();
                 fid.lfid       = lfid;
                 fid.capability = family.capability;
 
@@ -1254,7 +1254,7 @@ Result Allocator::DoFamilyAllocate()
                 msg.rawreg.pid             = req.completion_pid;
                 msg.rawreg.addr            = MAKE_REGADDR(RT_INTEGER, req.completion_reg);
                 msg.rawreg.value.m_state   = RST_FULL;
-                msg.rawreg.value.m_integer = GetDRISC().PackFID(fid);
+                msg.rawreg.value.m_integer = GetLEON2MT().PackFID(fid);
 
                 if (!m_network.SendMessage(msg))
                 {
@@ -1279,7 +1279,7 @@ Result Allocator::DoFamilyAllocate()
                 DebugSimWrite("F%u backward link allocation response (writeback CPU%u/R%04x prev CPU%u/F%u)",
                               (unsigned)lfid,
                               (unsigned)ret.completion_pid, (unsigned)ret.completion_reg,
-                              (unsigned)(GetDRISC().GetPID() - 1), (unsigned)ret.prev_fid);
+                              (unsigned)(GetLEON2MT().GetPID() - 1), (unsigned)ret.prev_fid);
 
                 if (!m_network.SendAllocResponse(std::move(ret)))
                 {
@@ -1301,7 +1301,7 @@ Result Allocator::DoFamilyAllocate()
             RemoteMessage msg;
             msg.type                  = RemoteMessage::MSG_CREATE;
             msg.create.address        = req.pc;
-            msg.create.fid.pid        = GetDRISC().GetPID();
+            msg.create.fid.pid        = GetLEON2MT().GetPID();
             msg.create.fid.lfid       = lfid;
             msg.create.fid.capability = family.capability;
             msg.create.completion_pid = req.completion_pid;
@@ -1352,7 +1352,7 @@ Result Allocator::DoFamilyAllocate()
 
 
 //For group create
-bool Allocator::QueueCreate(const LinkMessage& msg)
+bool TMU::QueueCreate(const LinkMessage& msg)
 {
     assert(msg.type == LinkMessage::MSG_CREATE);
     assert(msg.create.fid != INVALID_LFID);
@@ -1377,9 +1377,9 @@ bool Allocator::QueueCreate(const LinkMessage& msg)
 
     DebugSimWrite("F%u (%llu threads, place CPU%u/%u) accepted link create %s start index %llu",
                   (unsigned)msg.create.fid, (unsigned long long)family.nThreads,
-                  (unsigned)(GetDRISC().GetPID() & ~family.numCores),
+                  (unsigned)(GetLEON2MT().GetPID() & ~family.numCores),
                   (unsigned)family.numCores,
-                  GetDRISC().GetSymbolTable()[msg.create.address].c_str(),
+                  GetLEON2MT().GetSymbolTable()[msg.create.address].c_str(),
                   (unsigned long long)family.start);
 
     if (!AllocateRegisters(msg.create.fid, CONTEXT_RESERVED))
@@ -1417,9 +1417,9 @@ bool Allocator::QueueCreate(const LinkMessage& msg)
 }
 
 // For delegate/local create
-bool Allocator::QueueCreate(const RemoteMessage& msg)
+bool TMU::QueueCreate(const RemoteMessage& msg)
 {
-    assert(msg.create.fid.pid == GetDRISC().GetPID());
+    assert(msg.create.fid.pid == GetLEON2MT().GetPID());
 
     auto& family = GetFamilyChecked(msg.create.fid.lfid, msg.create.fid.capability);
 
@@ -1445,7 +1445,7 @@ bool Allocator::QueueCreate(const RemoteMessage& msg)
 
     DebugSimWrite("F%u queued create %s from CPU%u/R%04x",
                   (unsigned)info.fid,
-                  GetDRISC().GetSymbolTable()[msg.create.address].c_str(),
+                  GetLEON2MT().GetSymbolTable()[msg.create.address].c_str(),
                   (unsigned)info.completion_pid, (unsigned)info.completion_reg);
 
     if (!m_creates.Push(std::move(info)))
@@ -1458,7 +1458,7 @@ bool Allocator::QueueCreate(const RemoteMessage& msg)
 }
 
 
-Result Allocator::DoBundle()
+Result TMU::DoBundle()
 {
     // handle system call
     assert(!m_bundle.Empty());
@@ -1506,14 +1506,14 @@ Result Allocator::DoBundle()
         RemoteMessage msg;
         msg.type                       = RemoteMessage::MSG_ALLOCATE;
 
-        msg.allocate.place             = GetDRISC().UnpackPlace(UnserializeRegister(RT_INTEGER, &m_bundleData[0], sizeof(Integer)));
+        msg.allocate.place             = GetLEON2MT().UnpackPlace(UnserializeRegister(RT_INTEGER, &m_bundleData[0], sizeof(Integer)));
         if (msg.allocate.place.size == 0)
         {
             throw exceptf<>("Invalid place size in bundle creation");
         }
 
         COMMIT{
-        msg.allocate.completion_pid    = GetDRISC().GetPID();
+        msg.allocate.completion_pid    = GetLEON2MT().GetPID();
         msg.allocate.completion_reg    = info.completion_reg;
         msg.allocate.type              = ALLOCATE_SINGLE;
         msg.allocate.suspend           = true;
@@ -1545,7 +1545,7 @@ Result Allocator::DoBundle()
     return SUCCESS;
 }
 
-Result Allocator::DoFamilyCreate()
+Result TMU::DoFamilyCreate()
 {
     // The create at the front of the queue is the current create
     assert(!m_creates.Empty());
@@ -1597,7 +1597,7 @@ Result Allocator::DoFamilyCreate()
         auto& family = m_familyTable[info.fid];
 
         DebugSimWrite("F%u start creation %s",
-                      (unsigned)info.fid, GetDRISC().GetSymbolTable()[family.pc].c_str());
+                      (unsigned)info.fid, GetLEON2MT().GetSymbolTable()[family.pc].c_str());
 
         // Load the register counts from the family's first cache line
         Instruction counts;
@@ -1846,7 +1846,7 @@ Result Allocator::DoFamilyCreate()
         {
             FID fid;
             fid.lfid       = info.fid;
-            fid.pid        = GetDRISC().GetPID();
+            fid.pid        = GetLEON2MT().GetPID();
             fid.capability = m_familyTable[info.fid].capability;
 
             RemoteMessage msg;
@@ -1854,7 +1854,7 @@ Result Allocator::DoFamilyCreate()
             msg.rawreg.pid              = info.completion_pid;
             msg.rawreg.addr             = MAKE_REGADDR(RT_INTEGER, info.completion_reg);
             msg.rawreg.value.m_state    = RST_FULL;
-            msg.rawreg.value.m_integer  = GetDRISC().PackFID(fid);
+            msg.rawreg.value.m_integer  = GetLEON2MT().PackFID(fid);
 
             if (!m_network.SendMessage(msg))
             {
@@ -1875,7 +1875,7 @@ Result Allocator::DoFamilyCreate()
     return SUCCESS;
 }
 
-Result Allocator::DoThreadActivation()
+Result TMU::DoThreadActivation()
 {
     TID tid;
     if ((m_prevReadyList == &m_readyThreadsOther || m_readyThreadsOther.Empty()) && !m_readyThreadsPipe.Empty()) {
@@ -1934,7 +1934,7 @@ Result Allocator::DoThreadActivation()
 
 // Sanitizes the limit and block size.
 // Use only for non-delegated creates.
-Integer Allocator::CalculateThreadCount(SInteger start, SInteger limit, SInteger step)
+Integer TMU::CalculateThreadCount(SInteger start, SInteger limit, SInteger step)
 {
     // Sanitize the family entry
     if (step == 0)
@@ -1959,13 +1959,13 @@ Integer Allocator::CalculateThreadCount(SInteger start, SInteger limit, SInteger
     return (diff + step - 1) / step;
 }
 
-void Allocator::CalculateDistribution(Family& family, Integer nThreads, PSize numCores)
+void TMU::CalculateDistribution(Family& family, Integer nThreads, PSize numCores)
 {
     Integer threadsPerCore = std::max<Integer>(1, (nThreads + numCores - 1) / numCores);
 
     // If the numCores is 1, the family can start inside a place, so we can't use
     // placeSize to calculate the skip. The skip is 0 in that case.
-    Integer nThreadsSkipped = (numCores > 1) ? threadsPerCore * (GetDRISC().GetPID() % family.placeSize) : 0;
+    Integer nThreadsSkipped = (numCores > 1) ? threadsPerCore * (GetLEON2MT().GetPID() % family.placeSize) : 0;
 
     // Calculate number of threads to run on this core
     nThreads = std::min(std::max(nThreads, nThreadsSkipped) - nThreadsSkipped, threadsPerCore);
@@ -1986,7 +1986,7 @@ void Allocator::CalculateDistribution(Family& family, Integer nThreads, PSize nu
     }
 }
 
-Allocator::Allocator(const string& name, DRISC& parent, Clock& clock)
+TMU::TMU(const string& name, LEON2MT& parent, Clock& clock)
  :  Object(name, parent),
     m_familyTable(parent.GetFamilyTable()),
     m_threadTable(parent.GetThreadTable()),
@@ -2051,14 +2051,14 @@ Allocator::Allocator(const string& name, DRISC& parent, Clock& clock)
     RegisterSampleVariableInObjectWithName(m_numThreadsPerState[TST_READY], "numReadyThreads", SVC_LEVEL);
 }
 
-void Allocator::AllocateInitialFamily(MemAddr pc, bool legacy, PSize placeSize, SInteger startIndex)
+void TMU::AllocateInitialFamily(MemAddr pc, bool legacy, PSize placeSize, SInteger startIndex)
 {
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
     // On SPARC there is no RAZ floating-point register.
     static const unsigned char InitialRegisters[NUM_REG_TYPES] = {31, 32};
-#else
-    static const unsigned char InitialRegisters[NUM_REG_TYPES] = {31, 31};
-#endif
+//#else
+//    static const unsigned char InitialRegisters[NUM_REG_TYPES] = {31, 31};
+//#endif
 
     LFID fid = m_familyTable.AllocateFamily(CONTEXT_NORMAL);
     if (fid == INVALID_LFID)
@@ -2101,7 +2101,7 @@ void Allocator::AllocateInitialFamily(MemAddr pc, bool legacy, PSize placeSize, 
     m_alloc.Push(fid);
 }
 
-void Allocator::Push(ThreadQueue& q, TID tid)
+void TMU::Push(ThreadQueue& q, TID tid)
 {
     COMMIT
     {
@@ -2114,7 +2114,7 @@ void Allocator::Push(ThreadQueue& q, TID tid)
     }
 }
 
-TID Allocator::Pop(ThreadQueue& q)
+TID TMU::Pop(ThreadQueue& q)
 {
     TID tid = q.head;
     if (q.head != INVALID_TID)
@@ -2124,17 +2124,17 @@ TID Allocator::Pop(ThreadQueue& q)
     return tid;
 }
 
-void Allocator::Cmd_Info(ostream& out, const vector<string>& /* arguments */) const
+void TMU::Cmd_Info(ostream& out, const vector<string>& /* arguments */) const
 {
     out <<
-    "The Allocator is where most of the thread and family management takes place.\n"
+    "The TMU is where most of the thread and family management takes place.\n"
     "\n"
     "Supported operations:\n"
     "- inspect <component> [range]\n"
-    "  Reads and displays the various queues and registers in the Allocator.\n";
+    "  Reads and displays the various queues and registers in the TMU.\n";
 }
 
-void Allocator::Cmd_Read(ostream& out, const vector<string>& /*arguments*/) const
+void TMU::Cmd_Read(ostream& out, const vector<string>& /*arguments*/) const
 {
     {
         const struct {

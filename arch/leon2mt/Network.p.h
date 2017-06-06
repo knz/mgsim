@@ -8,11 +8,11 @@
 #include <sim/register.h>
 #include <sim/ports.h>
 #include <arch/simtypes.h>
-#include <arch/drisc/forward.h>
+#include <arch/leon2mt/forward.h>
 
 namespace Simulator
 {
-    namespace drisc
+    namespace leon2mt
     {
 
         // {% from "sim/macros.p.h" import gen_variant,gen_struct %}
@@ -290,8 +290,8 @@ public:
       (bool     broken)))
     // {% endcall %}
 
-    Network(const std::string& name, DRISC& parent, Clock& clock,
-            const std::vector<DRISC*>& grid);
+    Network(const std::string& name, LEON2MT& parent, Clock& clock,
+            const std::vector<LEON2MT*>& grid);
     Network(const Network&) = delete;
     Network& operator=(const Network&) = delete;
 
@@ -330,13 +330,13 @@ private:
 
     RegisterFile&                  m_regFile;
     FamilyTable&                   m_familyTable;
-    Allocator&                     m_allocator;
+    TMU&                     m_tmu;
     Network*                       m_prev;
     Network*                       m_next;
-    const std::vector<DRISC*>& m_grid;
+    const std::vector<LEON2MT*>& m_grid;
     unsigned int                   m_loadBalanceThreshold;
 
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
     // Statistics
     DefineSampleVariable(uint64_t, numAllocates);

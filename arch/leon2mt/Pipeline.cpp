@@ -1,5 +1,5 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/FPU.h>
 #include <sim/config.h>
 #include <arch/symtable.h>
@@ -13,11 +13,11 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 Pipeline::Pipeline(const std::string&  name,
-                   DRISC& parent,
+                   LEON2MT& parent,
                    Clock& clock)
   : Object(name, parent),
     InitProcess(p_Pipeline, DoPipeline),
@@ -108,9 +108,9 @@ Pipeline::Pipeline(const std::string&  name,
 void Pipeline::ConnectFPU(FPU* fpu)
 {
     assert(fpu != NULL);
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     size_t fpu_client_id = fpu->RegisterSource(cpu.GetRegisterFile(),
-                                               cpu.GetAllocator().m_readyThreadsOther);
+                                               cpu.GetTMU().m_readyThreadsOther);
     ExecuteStage &e = dynamic_cast<ExecuteStage&>(*m_stages[3].stage);
     e.ConnectFPU(fpu, fpu_client_id);
 }
@@ -229,7 +229,7 @@ Result Pipeline::DoPipeline()
         {
             // Add details about thread, family and PC
             stringstream details;
-            details << "While executing instruction at " << GetDRISC().GetSymbolTable()[stage->input->pc_dbg]
+            details << "While executing instruction at " << GetLEON2MT().GetSymbolTable()[stage->input->pc_dbg]
                     << " (0x" << hex << stage->input->pc_dbg
                     << ") in T" << dec << stage->input->tid << " in F" << stage->input->fid;
             e.AddDetails(details.str());
@@ -271,7 +271,7 @@ void Pipeline::PrintLatchCommon(std::ostream& out, const CommonData& latch) cons
 {
     out << " | LFID: F"  << dec << latch.fid
         << "    TID: T"  << dec << latch.tid << right
-        << "    PC: "    << GetDRISC().GetSymbolTable()[latch.pc_dbg] // "0x" << hex << setw(sizeof(MemAddr) * 2) << setfill('0') << latch.pc
+        << "    PC: "    << GetLEON2MT().GetSymbolTable()[latch.pc_dbg] // "0x" << hex << setw(sizeof(MemAddr) * 2) << setfill('0') << latch.pc
         << "    Annotation: " << ((latch.kill) ? "End" : (latch.swch ? "Switch" : "None")) << endl
         << " |" << endl;
 }
@@ -329,13 +329,13 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
     {
         PrintLatchCommon(out, m_drLatch);
         out  << hex << setfill('0')
-#if defined(TARGET_MTALPHA)
-             << " | Opcode:       0x" << setw(2) << (unsigned)m_drLatch.opcode
-#elif defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTALPHA)
+//             << " | Opcode:       0x" << setw(2) << (unsigned)m_drLatch.opcode
+//#elif defined(TARGET_MTSPARC)
              << " | Op1:          0x" << setw(2) << (unsigned)m_drLatch.op1
              << "   Op2: 0x" << setw(2) << (unsigned)m_drLatch.op2
              << "   Op3: 0x" << setw(2) << (unsigned)m_drLatch.op3
-#endif
+//#endif
              << "         Function: 0x" << setw(4) << m_drLatch.function << endl
              << " | Displacement: 0x" << setw(8) << m_drLatch.displacement
              << "   Literal:  0x" << setw(8) << m_drLatch.literal << endl
@@ -343,9 +343,9 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
              << " | Ra:           " << m_drLatch.Ra << "/" << m_drLatch.RaSize << endl
              << " | Rb:           " << m_drLatch.Rb << "/" << m_drLatch.RbSize << endl
              << " | Rc:           " << m_drLatch.Rc << "/" << m_drLatch.RcSize << endl
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
              << " | Rs:           " << m_drLatch.Rs << "/" << m_drLatch.RsSize << endl
-#endif
+//#endif
             ;
     }
     out << " v" << endl;
@@ -360,15 +360,15 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
     {
         PrintLatchCommon(out, m_reLatch);
         out  << hex << setfill('0')
-#if defined(TARGET_MTALPHA)
-             << " | Opcode:       0x" << setw(2) << (unsigned)m_reLatch.opcode
-             << "         Function:     0x" << setw(4) << m_reLatch.function << endl
-#elif defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTALPHA)
+//             << " | Opcode:       0x" << setw(2) << (unsigned)m_reLatch.opcode
+//             << "         Function:     0x" << setw(4) << m_reLatch.function << endl
+//#elif defined(TARGET_MTSPARC)
              << " | Op1:          0x" << setw(2) << (unsigned)m_reLatch.op1
              << "   Op2: 0x" << setw(2) << (unsigned)m_reLatch.op2
              << "   Op3: 0x" << setw(2) << (unsigned)m_reLatch.op3
              << "         Function:     0x" << setw(4) << m_reLatch.function << endl
-#endif
+//#endif
              << " | Displacement: 0x" << setw(8) << m_reLatch.displacement << endl
              << " | Rav:          " << MakePipeValue(m_reLatch.Ra.type, m_reLatch.Rav) << "/" << m_reLatch.Rav.m_size << endl
              << " | Rbv:          " << MakePipeValue(m_reLatch.Rb.type, m_reLatch.Rbv) << "/" << m_reLatch.Rbv.m_size << endl
@@ -398,7 +398,7 @@ void Pipeline::Cmd_Read(std::ostream& out, const std::vector<std::string>& /*arg
         {
             out << " | Operation: " << (m_emLatch.Rcv.m_state == RST_FULL ? "Store" : "Load") << endl
                 << " | Address:   0x" << hex << setw(sizeof(MemAddr) * 2) << setfill('0') << m_emLatch.address
-                << " " << GetDRISC().GetSymbolTable()[m_emLatch.address] << endl
+                << " " << GetLEON2MT().GetSymbolTable()[m_emLatch.address] << endl
                 << " | Size:      " << dec << m_emLatch.size << " bytes" << endl;
         }
     }

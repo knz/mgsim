@@ -1,11 +1,11 @@
-#include <arch/drisc/IODirectCacheAccess.h>
-#include <arch/drisc/DRISC.h>
+#include <arch/leon2mt/IODirectCacheAccess.h>
+#include <arch/leon2mt/LEON2MT.h>
 #include <sim/config.h>
 #include <cstring>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
     IODirectCacheAccess::IODirectCacheAccess(const std::string& name, IOInterface& parent, Clock& clock)
         : Object(name, parent),
@@ -59,7 +59,7 @@ namespace drisc
                                                     (unsigned long long)req.address, (unsigned)req.size, (unsigned)req.client, (int)req.type);
         }
 
-        auto& cpu = GetDRISC();
+        auto& cpu = GetLEON2MT();
         if (req.type != FLUSH && !cpu.CheckPermissions(req.address, req.size, (req.type == WRITE) ? IMemory::PERM_DCA_WRITE : IMemory::PERM_DCA_READ))
         {
             throw exceptf<SecurityException>(*this, "Invalid access in DCA request for %#016llx/%u (dev %u, type %d)",
@@ -127,7 +127,7 @@ namespace drisc
 
     Object& IODirectCacheAccess::GetMemoryPeer()
     {
-        return GetDRISC();
+        return GetLEON2MT();
     }
 
     Result IODirectCacheAccess::DoBusOutgoing()

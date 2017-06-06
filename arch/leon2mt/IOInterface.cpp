@@ -1,4 +1,4 @@
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 #include <arch/dev/IODeviceDatabase.h>
 
@@ -10,10 +10,10 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-    IOInterface::IOInterface(const string& name, DRISC& parent, Clock& clock,
+    IOInterface::IOInterface(const string& name, LEON2MT& parent, Clock& clock,
                              IOMessageInterface& ioif, IODeviceID devid)
         : Object(name, parent),
           m_numDevices(GetConf("NumDeviceSlots", size_t)),
@@ -340,7 +340,7 @@ namespace drisc
         }
         if (smcid == INVALID_IO_DEVID)
         {
-            clog << "#warning: processor " << GetDRISC().GetName() << " connected to I/O but cannot find SMC" << endl;
+            clog << "#warning: processor " << GetLEON2MT().GetName() << " connected to I/O but cannot find SMC" << endl;
         }
         else
         {
@@ -348,11 +348,11 @@ namespace drisc
             value |= smcid << 16;
         }
 
-        GetDRISC().WriteASR(ASR_IO_PARAMS1, value);
+        GetLEON2MT().WriteASR(ASR_IO_PARAMS1, value);
         value = m_async_io.GetDeviceAddressBits();
-        GetDRISC().WriteASR(ASR_IO_PARAMS2, value);
-        GetDRISC().WriteASR(ASR_AIO_BASE, m_async_io.GetDeviceBaseAddress(0));
-        GetDRISC().WriteASR(ASR_PNC_BASE, m_pnc.GetDeviceBaseAddress(0));
+        GetLEON2MT().WriteASR(ASR_IO_PARAMS2, value);
+        GetLEON2MT().WriteASR(ASR_AIO_BASE, m_async_io.GetDeviceBaseAddress(0));
+        GetLEON2MT().WriteASR(ASR_PNC_BASE, m_pnc.GetDeviceBaseAddress(0));
 
 
     }

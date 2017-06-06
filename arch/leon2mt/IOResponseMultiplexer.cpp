@@ -1,10 +1,10 @@
-#include <arch/drisc/IOResponseMultiplexer.h>
-#include <arch/drisc/DRISC.h>
+#include <arch/leon2mt/IOResponseMultiplexer.h>
+#include <arch/leon2mt/LEON2MT.h>
 #include <sim/config.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 IOResponseMultiplexer::IOResponseMultiplexer(const std::string& name, IOInterface& parent, Clock& clock, size_t numDevices)
@@ -80,7 +80,7 @@ Result IOResponseMultiplexer::DoReceivedReadResponses()
     const RegAddr& addr = wbq.Front();
 
     // Try to write to register
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     auto& regFile = cpu.GetRegisterFile();
     if (!regFile.p_asyncW.Write(addr))
     {
@@ -134,7 +134,7 @@ Result IOResponseMultiplexer::DoReceivedReadResponses()
         return FAILED;
     }
 
-    if (!cpu.GetAllocator().DecreaseFamilyDependency(fid, FAMDEP_OUTSTANDING_READS))
+    if (!cpu.GetTMU().DecreaseFamilyDependency(fid, FAMDEP_OUTSTANDING_READS))
     {
         DeadlockWrite("Unable to decrement outstanding reads on F%u", (unsigned)fid);
         return FAILED;

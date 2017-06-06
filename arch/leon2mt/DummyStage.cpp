@@ -2,7 +2,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 Pipeline::PipeAction Pipeline::DummyStage::OnCycle()

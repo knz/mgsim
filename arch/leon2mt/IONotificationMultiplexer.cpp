@@ -1,5 +1,5 @@
 #include "IONotificationMultiplexer.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 
 #include <iomanip>
@@ -8,7 +8,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 IONotificationMultiplexer::IONotificationMultiplexer(const string& name, IOInterface& parent, Clock& clock,
@@ -194,7 +194,7 @@ Result IONotificationMultiplexer::DoReceivedNotifications()
 
         const RegAddr& addr = m_writebacks[i]->Read();
 
-        auto& cpu = GetDRISC();
+        auto& cpu = GetLEON2MT();
         auto& regFile = cpu.GetRegisterFile();
 
         if (!regFile.p_asyncW.Write(addr))
@@ -258,8 +258,8 @@ Result IONotificationMultiplexer::DoReceivedNotifications()
             return FAILED;
         }
 
-        auto& alloc = cpu.GetAllocator();
-        if (!alloc.DecreaseFamilyDependency(fid, FAMDEP_OUTSTANDING_READS))
+        auto& tmu = cpu.GetTMU();
+        if (!tmu.DecreaseFamilyDependency(fid, FAMDEP_OUTSTANDING_READS))
         {
             DeadlockWrite("Unable to decrement outstanding reads on F%u", (unsigned)fid);
             return FAILED;

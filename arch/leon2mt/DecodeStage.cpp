@@ -6,7 +6,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 /**
  \brief This function translates the 32-registers based address into the
@@ -118,25 +118,25 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
             m_output.RaSize = sizeof(Integer);
             m_output.RbSize = sizeof(Integer);
             m_output.RcSize = sizeof(Integer);
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
             m_output.RsSize = sizeof(Integer);
-#endif
+//#endif
 
             DecodeInstruction(m_input.instr);
 
             DebugPipeWrite("F%u/T%u(%llu) %s decoded %s %s %s"
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                            " %s"
-#endif
+//#endif
                            " lit %lu"
                            ,
                            (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
                            m_output.Ra.str().c_str(),
                            m_output.Rb.str().c_str(),
                            m_output.Rc.str().c_str(),
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                            m_output.Rs.str().c_str(),
-#endif
+//#endif
                            (unsigned long)m_output.literal
                 );
 
@@ -145,9 +145,9 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
             m_output.Rb = TranslateRegister((unsigned char)m_output.Rb.index, m_output.Rb.type, m_output.RbSize, &m_output.RbIsLocal);
             bool dummy;
             m_output.Rc = TranslateRegister((unsigned char)m_output.Rc.index, m_output.Rc.type, m_output.RcSize, &dummy);
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
             m_output.Rs = TranslateRegister((unsigned char)m_output.Rs.index, m_output.Rs.type, m_output.RsSize, &m_output.RsIsLocal);
-#endif
+//#endif
         }
         catch (IllegalInstructionException& ex)
         {
@@ -161,17 +161,17 @@ Pipeline::PipeAction Pipeline::DecodeStage::OnCycle()
     }
 
     DebugPipeWrite("F%u/T%u(%llu) %s translated %s %s %s"
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                    " %s"
-#endif
+//#endif
                    ,
                    (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
                    m_output.Ra.str().c_str(),
                    m_output.Rb.str().c_str(),
                    m_output.Rc.str().c_str()
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                    , m_output.Rs.str().c_str()
-#endif
+//#endif
         );
     return PIPE_CONTINUE;
 }

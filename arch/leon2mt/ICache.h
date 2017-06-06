@@ -10,12 +10,12 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class ICache : public Object, public IMemoryCallback, public Inspect::Interface<Inspect::Read>
 {
-    friend class Simulator::DRISC;
+    friend class Simulator::LEON2MT;
 
     enum LineState
     {
@@ -67,10 +67,10 @@ class ICache : public Object, public IMemoryCallback, public Inspect::Interface<
     DefineSampleVariable(uint64_t, numResolvedConflicts);
     DefineSampleVariable(uint64_t, numStallingMisses);
 
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
 public:
-    ICache(const std::string& name, DRISC& parent, Clock& clock);
+    ICache(const std::string& name, LEON2MT& parent, Clock& clock);
     ICache(const ICache&) = delete;
     ICache& operator=(const ICache&) = delete;
     ~ICache();

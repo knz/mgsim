@@ -11,7 +11,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class RAUnit : public Object, public Inspect::Interface<Inspect::Read>

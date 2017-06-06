@@ -5,20 +5,20 @@
 #include <sim/kernel.h>
 #include <sim/inspect.h>
 #include <arch/simtypes.h>
-#include <arch/drisc/forward.h>
-#include <arch/drisc/FamilyTable.h>
-#include <arch/drisc/ThreadTable.h>
-#include <arch/drisc/Network.h>
+#include <arch/leon2mt/forward.h>
+#include <arch/leon2mt/FamilyTable.h>
+#include <arch/leon2mt/ThreadTable.h>
+#include <arch/leon2mt/Network.h>
 
 namespace Simulator
 {
 class FPU;
-namespace drisc
+namespace leon2mt
 {
 
 class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
 {
-    friend class Simulator::DRISC;
+    friend class Simulator::LEON2MT;
 
     /// A (possibly multi-) register value in the pipeline
     struct PipeValue
@@ -40,15 +40,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         std::string str(RegType type) const;
     };
 
-#if defined(TARGET_MTALPHA)
-#include "ISA.mtalpha.h"
-#elif defined(TARGET_MTSPARC)
-#include "ISA.mtsparc.h"
-#elif defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
-#include "ISA.mips.h"
-#elif defined(TARGET_OR1K)
-#include "ISA.or1k.h"
-#endif
+#include "ISA.leon2mt.h"
 
     static inline PipeValue MAKE_EMPTY_PIPEVALUE(unsigned int size)
     {
@@ -256,13 +248,13 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
     protected:
         Stage(const std::string& name, Object& parent)
             : Object(name, parent) {}
-        Object& GetDRISCParent()  const { return *GetParent()->GetParent(); }
+        Object& GetLEON2MTParent()  const { return *GetParent()->GetParent(); }
     };
 
     class FetchStage : public Stage
     {
         FetchDecodeLatch& m_output;
-        Allocator&        m_allocator;
+        TMU&        m_tmu;
         FamilyTable&      m_familyTable;
         ThreadTable&      m_threadTable;
         ICache&           m_icache;
@@ -289,9 +281,9 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         RegAddr TranslateRegister(uint8_t reg, RegType type, unsigned int size, bool *islocal) const;
         void    DecodeInstruction(const Instruction& instr);
 
-#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
-        static InstrFormat GetInstrFormat(uint8_t opcode);
-#endif
+//#if defined(TARGET_MTALPHA) || defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
+//        static InstrFormat GetInstrFormat(uint8_t opcode);
+//#endif
     public:
         DecodeStage(Pipeline& parent,
                     const FetchDecodeLatch& input, DecodeReadLatch& output);
@@ -329,12 +321,12 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         OperandInfo                 m_operand1, m_operand2;
         bool                        m_RaNotPending;
 
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
         // Sparc memory stores require three registers so takes two cycles.
         // First cycle calculates the address and stores it here.
         bool      m_isMemoryOp;
         PipeValue m_rsv;
-#endif
+//#endif
 
         static PipeValue RegToPipeValue(RegType type, const RegValue& src_value);
     public:
@@ -347,7 +339,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
     {
         const ReadExecuteLatch& m_input;
         ExecuteMemoryLatch&     m_output;
-        Allocator&              m_allocator;
+        TMU&              m_tmu;
         FamilyTable&            m_familyTable;
         ThreadTable&            m_threadTable;
         FPU*                    m_fpu;
@@ -374,18 +366,18 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         void       ExecMemoryControl(Integer value, int command, int flags) const;
         void       ExecDebugOutput(Integer value, int command, int flags) const;
 
-#if defined(TARGET_MTALPHA)
-        static bool BranchTaken(uint8_t opcode, const PipeValue& value);
-        bool ExecuteINTA(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteINTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteINTS(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteINTM(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteFLTV(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteFLTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteFLTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteITFP(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-        bool ExecuteFPTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
-#elif defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTALPHA)
+//        static bool BranchTaken(uint8_t opcode, const PipeValue& value);
+//        bool ExecuteINTA(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteINTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteINTS(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteINTM(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteFLTV(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteFLTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteFLTL(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteITFP(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//        bool ExecuteFPTI(PipeValue& Rcv, const PipeValue& Rav, const PipeValue& Rbv, int func);
+//#elif defined(TARGET_MTSPARC)
         static bool BranchTakenInt(int cond, uint32_t psr);
         static bool BranchTakenFlt(int cond, uint32_t fsr);
                uint32_t ExecBasicInteger(int opcode, uint32_t Rav, uint32_t Rbv, uint32_t& Y, PSR& psr); // not static for div/0 exceptions
@@ -394,7 +386,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         PipeAction ExecReadASR20(uint8_t func);
         PipeAction ExecWriteASR19(uint8_t func);
         PipeAction ExecWriteASR20(uint8_t func);
-#endif
+//#endif
 
         static RegValue PipeValueToRegValue(RegType type, const PipeValue& v);
     public:
@@ -414,7 +406,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
     {
         const ExecuteMemoryLatch& m_input;
         MemoryWritebackLatch&     m_output;
-        Allocator&                m_allocator;
+        TMU&                m_tmu;
         DCache&                   m_dcache;
         uint64_t                  m_loads;         // nr of successful loads
         uint64_t                  m_stores;        // nr of successful stores
@@ -445,7 +437,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
         const MemoryWritebackLatch& m_input;
         bool                        m_stall;
         RegisterFile&               m_regFile;
-        Allocator&                  m_allocator;
+        TMU&                  m_tmu;
         ThreadTable&                m_threadTable;
         Network&                    m_network;
         int                         m_writebackOffset; // For multiple-cycle writebacks
@@ -459,7 +451,7 @@ class Pipeline : public Object, public Inspect::Interface<Inspect::Read>
     static std::string MakePipeValue(const RegType& type, const PipeValue& value);
 
 public:
-    Pipeline(const std::string& name, DRISC& parent, Clock& clock);
+    Pipeline(const std::string& name, LEON2MT& parent, Clock& clock);
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
     ~Pipeline();
@@ -475,7 +467,7 @@ public:
         throw ex;                                                       \
     } while(0)
 
-    Object& GetDRISCParent()  const { return *GetParent(); }
+    Object& GetLEON2MTParent()  const { return *GetParent(); }
 
     uint64_t GetTotalBusyTime() const { return m_pipelineBusyTime; }
     uint64_t GetStalls() const { return m_nStalls; }

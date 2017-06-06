@@ -8,22 +8,22 @@
 #include <arch/Memory.h>
 #include <arch/BankSelector.h>
 #include <arch/FPU.h>
-#include <arch/drisc/RAUnit.h>
-#include <arch/drisc/IOMatchUnit.h>
-#include <arch/drisc/DebugChannel.h>
-#include <arch/drisc/ActionInterface.h>
-#include <arch/drisc/AncillaryRegisterFile.h>
-#include <arch/drisc/PerfCounters.h>
-#include <arch/drisc/MMUInterface.h>
-#include <arch/drisc/RegisterFile.h>
-#include <arch/drisc/FamilyTable.h>
-#include <arch/drisc/ThreadTable.h>
-#include <arch/drisc/ICache.h>
-#include <arch/drisc/DCache.h>
-#include <arch/drisc/IOInterface.h>
-#include <arch/drisc/Network.h>
-#include <arch/drisc/Allocator.h>
-#include <arch/drisc/Pipeline.h>
+#include <arch/leon2mt/RAUnit.h>
+#include <arch/leon2mt/IOMatchUnit.h>
+#include <arch/leon2mt/DebugChannel.h>
+#include <arch/leon2mt/ActionInterface.h>
+#include <arch/leon2mt/AncillaryRegisterFile.h>
+#include <arch/leon2mt/PerfCounters.h>
+#include <arch/leon2mt/MMUInterface.h>
+#include <arch/leon2mt/RegisterFile.h>
+#include <arch/leon2mt/FamilyTable.h>
+#include <arch/leon2mt/ThreadTable.h>
+#include <arch/leon2mt/ICache.h>
+#include <arch/leon2mt/DCache.h>
+#include <arch/leon2mt/IOInterface.h>
+#include <arch/leon2mt/Network.h>
+#include <arch/leon2mt/TMU.h>
+#include <arch/leon2mt/Pipeline.h>
 
 class Config;
 
@@ -32,21 +32,21 @@ namespace Simulator
 
     class BreakPointManager;
 
-#define GetDRISC() (static_cast<DRISC&>(GetDRISCParent()))
+#define GetLEON2MT() (static_cast<LEON2MT&>(GetLEON2MTParent()))
 
-class DRISC : public Object
+class LEON2MT : public Object
 {
 public:
-    class Allocator;
+    class TMU;
 
-    DRISC(const std::string& name, Object& parent, Clock& clock, PID pid, const std::vector<DRISC*>& grid, BreakPointManager& bp);
-    DRISC(const DRISC&) = delete;
-    DRISC& operator=(const DRISC&) = delete;
-    ~DRISC();
+    LEON2MT(const std::string& name, Object& parent, Clock& clock, PID pid, const std::vector<LEON2MT*>& grid, BreakPointManager& bp);
+    LEON2MT(const LEON2MT&) = delete;
+    LEON2MT& operator=(const LEON2MT&) = delete;
+    ~LEON2MT();
 
 public:
     void ConnectMemory(IMemory* memory, IMemoryAdmin *admin);
-    void ConnectLink(DRISC* prev, DRISC* next);
+    void ConnectLink(LEON2MT* prev, LEON2MT* next);
     void ConnectFPU(FPU* fpu);
     void ConnectIO(IOMessageInterface* ioif);
 
@@ -69,24 +69,24 @@ public:
 
     TSize GetMaxThreadsAllocated() const { return m_threadTable.GetMaxAllocated(); }
     TSize GetTotalThreadsAllocated() { return m_threadTable.GetTotalAllocated(); }
-    TSize GetTotalThreadsCreated() { return m_allocator.GetTotalThreadsCreated(); }
+    TSize GetTotalThreadsCreated() { return m_tmu.GetTotalThreadsCreated(); }
     TSize GetThreadTableSize() const { return m_threadTable.GetNumThreads(); }
     float GetThreadTableOccupancy() { return (float)GetTotalThreadsAllocated() / (float)GetThreadTableSize() / (float)GetKernel()->GetCycleNo(); }
     FSize GetMaxFamiliesAllocated() const { return m_familyTable.GetMaxAllocated(); }
     FSize GetTotalFamiliesAllocated() { return m_familyTable.GetTotalAllocated(); }
-    FSize GetTotalFamiliesCreated() { return m_allocator.GetTotalFamiliesCreated(); }
+    FSize GetTotalFamiliesCreated() { return m_tmu.GetTotalFamiliesCreated(); }
     FSize GetFamilyTableSize() const { return m_familyTable.GetNumFamilies(); }
     float GetFamilyTableOccupancy() { return (float)GetTotalFamiliesAllocated() / (float)GetFamilyTableSize() / (float)GetKernel()->GetCycleNo(); }
-    BufferSize GetMaxAllocateExQueueSize() { return m_allocator.GetMaxAllocatedEx(); }
-    BufferSize GetTotalAllocateExQueueSize() { return m_allocator.GetTotalAllocatedEx(); }
+    BufferSize GetMaxAllocateExQueueSize() { return m_tmu.GetMaxAllocatedEx(); }
+    BufferSize GetTotalAllocateExQueueSize() { return m_tmu.GetTotalAllocatedEx(); }
     float GetAverageAllocateExQueueSize() { return (float)GetTotalAllocateExQueueSize() / (float)GetKernel()->GetCycleNo(); }
 
     unsigned int GetNumSuspendedRegisters() const;
 
-    void WriteASR(drisc::ARAddr which, Integer data) {  m_asr_file.WriteRegister(which, data); }
-    Integer ReadASR(drisc::ARAddr which) const { return m_asr_file.ReadRegister(which); }
-    void WriteAPR(drisc::ARAddr which, Integer data) {  m_apr_file.WriteRegister(which, data); }
-    Integer ReadAPR(drisc::ARAddr which) const { return m_apr_file.ReadRegister(which); }
+    void WriteASR(leon2mt::ARAddr which, Integer data) {  m_asr_file.WriteRegister(which, data); }
+    Integer ReadASR(leon2mt::ARAddr which) const { return m_asr_file.ReadRegister(which); }
+    void WriteAPR(leon2mt::ARAddr which, Integer data) {  m_apr_file.WriteRegister(which, data); }
+    Integer ReadAPR(leon2mt::ARAddr which) const { return m_apr_file.ReadRegister(which); }
 
 
 
@@ -106,17 +106,17 @@ public:
     bool CheckPermissions(MemAddr address, MemSize size, int access) const;
 
     BreakPointManager& GetBreakPointManager() { return m_bp_manager; }
-    drisc::Network& GetNetwork() { return m_network; }
-    drisc::IOInterface* GetIOInterface() { return m_io_if; }
-    drisc::RegisterFile& GetRegisterFile() { return m_registerFile; }
-    drisc::ICache& GetICache() { return m_icache; }
-    drisc::DCache& GetDCache() { return m_dcache; }
-    drisc::Allocator& GetAllocator() { return m_allocator; }
-    drisc::RAUnit& GetRAUnit() { return m_raunit; }
-    drisc::Pipeline& GetPipeline() { return m_pipeline; }
-    drisc::IOMatchUnit& GetIOMatchUnit() { return m_mmio; }
-    drisc::FamilyTable& GetFamilyTable() { return m_familyTable; }
-    drisc::ThreadTable& GetThreadTable() { return m_threadTable; }
+    leon2mt::Network& GetNetwork() { return m_network; }
+    leon2mt::IOInterface* GetIOInterface() { return m_io_if; }
+    leon2mt::RegisterFile& GetRegisterFile() { return m_registerFile; }
+    leon2mt::ICache& GetICache() { return m_icache; }
+    leon2mt::DCache& GetDCache() { return m_dcache; }
+    leon2mt::TMU& GetTMU() { return m_tmu; }
+    leon2mt::RAUnit& GetRAUnit() { return m_raunit; }
+    leon2mt::Pipeline& GetPipeline() { return m_pipeline; }
+    leon2mt::IOMatchUnit& GetIOMatchUnit() { return m_mmio; }
+    leon2mt::FamilyTable& GetFamilyTable() { return m_familyTable; }
+    leon2mt::ThreadTable& GetThreadTable() { return m_threadTable; }
     SymbolTable& GetSymbolTable() { return *m_symtable; }
 
 private:
@@ -124,7 +124,7 @@ private:
     BreakPointManager&             m_bp_manager;
     IMemory*                       m_memory;
     IMemoryAdmin*                  m_memadmin;
-    const std::vector<DRISC*>&     m_grid;
+    const std::vector<LEON2MT*>&     m_grid;
     FPU*                           m_fpu;
     SymbolTable*                   m_symtable;
     PID                            m_pid;
@@ -134,36 +134,36 @@ private:
     // Bit counts for packing and unpacking configuration-dependent values
     struct
     {
-        unsigned int pid_bits;  ///< Number of bits for a PID (DRISC ID)
+        unsigned int pid_bits;  ///< Number of bits for a PID (LEON2MT ID)
         unsigned int fid_bits;  ///< Number of bits for a LFID (Local Family ID)
         unsigned int tid_bits;  ///< Number of bits for a TID (Thread ID)
     } m_bits;
 
     // The components on the core
-    drisc::FamilyTable    m_familyTable;
-    drisc::ThreadTable    m_threadTable;
-    drisc::RegisterFile   m_registerFile;
-    drisc::RAUnit         m_raunit;
-    drisc::Allocator      m_allocator;
-    drisc::ICache         m_icache;
-    drisc::DCache         m_dcache;
-    drisc::Pipeline       m_pipeline;
-    drisc::Network        m_network;
+    leon2mt::FamilyTable    m_familyTable;
+    leon2mt::ThreadTable    m_threadTable;
+    leon2mt::RegisterFile   m_registerFile;
+    leon2mt::RAUnit         m_raunit;
+    leon2mt::TMU            m_tmu;
+    leon2mt::ICache         m_icache;
+    leon2mt::DCache         m_dcache;
+    leon2mt::Pipeline       m_pipeline;
+    leon2mt::Network        m_network;
 
     // Local MMIO devices
-    drisc::IOMatchUnit    m_mmio;
-    drisc::AncillaryRegisterFile m_apr_file;
-    drisc::AncillaryRegisterFile m_asr_file;
-    drisc::PerfCounters   m_perfcounters;
-    drisc::DebugChannel   m_lpout;
-    drisc::DebugChannel   m_lperr;
-    drisc::MMUInterface   m_mmu;
-    drisc::ActionInterface m_action;
+    leon2mt::IOMatchUnit    m_mmio;
+    leon2mt::AncillaryRegisterFile m_apr_file;
+    leon2mt::AncillaryRegisterFile m_asr_file;
+    leon2mt::PerfCounters   m_perfcounters;
+    leon2mt::DebugChannel   m_lpout;
+    leon2mt::DebugChannel   m_lperr;
+    leon2mt::MMUInterface   m_mmu;
+    leon2mt::ActionInterface m_action;
 
     // External I/O interface, optional
-    drisc::IOInterface    *m_io_if;
+    leon2mt::IOInterface    *m_io_if;
 
-    friend class drisc::PerfCounters::Helpers;
+    friend class leon2mt::PerfCounters::Helpers;
 };
 
 }

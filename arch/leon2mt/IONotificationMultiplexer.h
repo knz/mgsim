@@ -13,7 +13,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IONotificationMultiplexer : public Object, public Inspect::Interface<Inspect::Read>
@@ -31,7 +31,7 @@ public:
 private:
     size_t                          m_lastNotified;
 
-    Object& GetDRISCParent() const { return *GetParent()->GetParent(); };
+    Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); };
 
 public:
     IONotificationMultiplexer(const std::string& name, IOInterface& parent, Clock& clock, size_t numChannels);

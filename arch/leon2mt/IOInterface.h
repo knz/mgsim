@@ -6,28 +6,28 @@
 #include <sim/inspect.h>
 #include <sim/storage.h>
 #include <arch/Memory.h>
-#include <arch/drisc/IOMatchUnit.h>
-#include <arch/drisc/IOResponseMultiplexer.h>
-#include <arch/drisc/IONotificationMultiplexer.h>
-#include <arch/drisc/IOBusInterface.h>
-#include <arch/drisc/IODirectCacheAccess.h>
+#include <arch/leon2mt/IOMatchUnit.h>
+#include <arch/leon2mt/IOResponseMultiplexer.h>
+#include <arch/leon2mt/IONotificationMultiplexer.h>
+#include <arch/leon2mt/IOBusInterface.h>
+#include <arch/leon2mt/IODirectCacheAccess.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IOInterface : public Object, public Inspect::Interface<Inspect::Info>
 {
 public:
-    class AsyncIOInterface : public drisc::MMIOComponent, public Inspect::Interface<Inspect::Info>
+    class AsyncIOInterface : public leon2mt::MMIOComponent, public Inspect::Interface<Inspect::Info>
     {
     private:
         MemAddr                 m_baseAddr;
         unsigned                m_devAddrBits;
 
         IOInterface&  GetInterface() const;
-        Object& GetDRISCParent() const { return *GetParent()->GetParent(); };
+        Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); };
     public:
         AsyncIOInterface(const std::string& name, IOInterface& parent);
 
@@ -43,12 +43,12 @@ public:
         MemAddr GetDeviceBaseAddress(IODeviceID dev) const;
     };
 
-    class PNCInterface : public drisc::MMIOComponent, public Inspect::Interface<Inspect::Info>
+    class PNCInterface : public leon2mt::MMIOComponent, public Inspect::Interface<Inspect::Info>
     {
     private:
         MemAddr                 m_baseAddr;
         IOInterface&  GetInterface() const;
-        Object& GetDRISCParent() const { return *GetParent()->GetParent(); };
+        Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); };
 
     public:
         PNCInterface(const std::string& name, IOInterface& parent);
@@ -84,15 +84,15 @@ private:
     bool Write(IODeviceID dev, MemAddr address, const IOData& data);
     bool WaitForNotification(IONotificationChannelID dev, const RegAddr& writeback);
     bool ConfigureNotificationChannel(IONotificationChannelID dev, Integer mode);
-    Object& GetDRISCParent() const { return *GetParent(); };
+    Object& GetLEON2MTParent() const { return *GetParent(); };
 
 public:
-    IOInterface(const std::string& name, DRISC& parent, Clock& clock,
+    IOInterface(const std::string& name, LEON2MT& parent, Clock& clock,
                 IOMessageInterface& ioif, IODeviceID devid);
     void ConnectMemory(IMemory* memory);
 
-    drisc::MMIOComponent& GetAsyncIOInterface() { return m_async_io; }
-    drisc::MMIOComponent& GetPNCInterface() { return m_pnc; }
+    leon2mt::MMIOComponent& GetAsyncIOInterface() { return m_async_io; }
+    leon2mt::MMIOComponent& GetPNCInterface() { return m_pnc; }
 
     IOResponseMultiplexer& GetReadResponseMultiplexer() { return m_rrmux; }
     IONotificationMultiplexer& GetNotificationMultiplexer() { return m_nmux; }

@@ -5,11 +5,11 @@
 #include <sim/kernel.h>
 #include <sim/storage.h>
 #include <arch/IOMessageInterface.h>
-#include <arch/drisc/forward.h>
+#include <arch/leon2mt/forward.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IOBusInterface : public IIOMessageClient, public Object
@@ -33,7 +33,7 @@ private:
     IODeviceID                 m_hostid;
 
     void Initialize() override;
-    Object& GetDRISCParent() const { return *GetParent()->GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); }
 
 public:
     Buffer<IORequest>         m_outgoing_reqs;

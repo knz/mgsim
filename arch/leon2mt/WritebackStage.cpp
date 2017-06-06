@@ -1,10 +1,10 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <cassert>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
@@ -254,7 +254,7 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
             {
                 // Kill the thread
                 assert(suspend == false);
-                if (!m_allocator.KillThread(m_input.tid))
+                if (!m_tmu.KillThread(m_input.tid))
                 {
                     DeadlockWrite("F%u/T%u(%llu) %s unable to terminate thread",
                                   (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
@@ -266,7 +266,7 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
             else if (suspend)
             {
                 // Suspend the thread
-                if (!m_allocator.SuspendThread(m_input.tid, m_input.pc))
+                if (!m_tmu.SuspendThread(m_input.tid, m_input.pc))
                 {
                     DeadlockWrite("F%u/T%u(%llu) %s unable to suspend thread",
                                   (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
@@ -280,7 +280,7 @@ Pipeline::PipeAction Pipeline::WritebackStage::OnCycle()
                 // We can only reschedule if the write didn't wake up a thread
                 // Otherwise we're appending multiple things to a linked list.
 
-                if (!m_allocator.RescheduleThread(m_input.tid, m_input.pc))
+                if (!m_tmu.RescheduleThread(m_input.tid, m_input.pc))
                 {
                     // We cannot reschedule, stall pipeline
                     DeadlockWrite("F%u/T%u(%llu) %s unable to reschedule thread",
@@ -315,10 +315,10 @@ Pipeline::WritebackStage::WritebackStage(Pipeline& parent,
   : Stage("writeback", parent),
     m_input(input),
     m_stall(false),
-    m_regFile(GetDRISC().GetRegisterFile()),
-    m_allocator(GetDRISC().GetAllocator()),
-    m_threadTable(GetDRISC().GetThreadTable()),
-    m_network(GetDRISC().GetNetwork()),
+    m_regFile(GetLEON2MT().GetRegisterFile()),
+    m_tmu(GetLEON2MT().GetTMU()),
+    m_threadTable(GetLEON2MT().GetThreadTable()),
+    m_network(GetLEON2MT().GetNetwork()),
     m_writebackOffset(-1)
 {
 }

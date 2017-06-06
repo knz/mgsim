@@ -6,11 +6,11 @@
 #include <sim/buffer.h>
 #include <arch/Memory.h>
 #include <arch/IOBus.h>
-#include <arch/drisc/forward.h>
+#include <arch/leon2mt/forward.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IODirectCacheAccess : public Object, public IMemoryCallback
@@ -52,7 +52,7 @@ private:
     IOBusInterface&      m_busif;
     const MemSize        m_lineSize;
 
-    Object& GetDRISCParent() const { return *GetParent()->GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); }
 
 public:
     Buffer<Request>      m_requests; // from bus

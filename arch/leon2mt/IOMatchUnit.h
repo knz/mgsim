@@ -10,7 +10,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IOMatchUnit : public Object, public Inspect::Interface<Inspect::Info>

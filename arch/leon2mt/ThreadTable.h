@@ -11,7 +11,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 struct Thread
@@ -67,18 +67,18 @@ struct Thread
     TID          next;
 
     // Architecture specific per-thread stuff
-#if defined(TARGET_MTALPHA)
-    FPCR         fpcr;
-#elif defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTALPHA)
+//    FPCR         fpcr;
+//#elif defined(TARGET_MTSPARC)
     PSR          psr;
     FSR          fsr;
     uint32_t     Y;
-#elif defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
-    uint32_t     LO;
-    uint32_t     HI;
-#elif defined(TARGET_OR1K)
-    // FIXME: FILL IN THREAD-SPECIFIC DATA FIELDS HERE
-#endif
+//#elif defined(TARGET_MIPS32) || defined(TARGET_MIPS32EL)
+//    uint32_t     LO;
+//    uint32_t     HI;
+//#elif defined(TARGET_OR1K)
+//    // FIXME: FILL IN THREAD-SPECIFIC DATA FIELDS HERE
+//#endif
 
     bool         waitingForWrites;
 
@@ -90,7 +90,7 @@ struct Thread
 class ThreadTable : public Object, public Inspect::Interface<Inspect::Read>
 {
 public:
-    ThreadTable(const std::string& name, DRISC& parent);
+    ThreadTable(const std::string& name, LEON2MT& parent);
 
     TSize GetNumThreads() const { return m_threads.size(); }
 
@@ -126,7 +126,7 @@ private:
 
     void UpdateStats();
     void CheckStateSanity() const;
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
 };
 

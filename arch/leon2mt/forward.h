@@ -1,17 +1,17 @@
 // -*- c++ -*-
-#ifndef DRISC_FORWARD_H
-#define DRISC_FORWARD_H
+#ifndef LEON2MT_FORWARD_H
+#define LEON2MT_FORWARD_H
 
 // Forward declarations
 class Config;
 namespace Simulator
 {
-    class DRISC;
+    class LEON2MT;
     class IBankSelector;
 
     namespace counters {};
 
-    namespace drisc
+    namespace leon2mt
     {
         class FamilyTable;
         struct Family;
@@ -23,7 +23,7 @@ namespace Simulator
         class DCache;
         class Network;
         class Pipeline;
-        class Allocator;
+        class TMU;
         class MMIOComponent;
         class IOMatchUnit;
         class IOBusInterface;

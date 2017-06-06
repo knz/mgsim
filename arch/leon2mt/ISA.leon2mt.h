@@ -10,20 +10,20 @@
 enum {
     S_OP1_BRANCH = 0,
     S_OP1_CALL   = 1,
-    S_OP1_OTHER  = 2,
+    S_OP1_ALU    = 2,
     S_OP1_MEMORY = 3,
 };
 
 // op2 (op1 is S_OP1_BRANCH)
 enum {
     S_OP2_UNIMPL     = 0,
-    S_OP2_BRANCH_INT = 2,
+    S_OP2_BICC       = 2,
     S_OP2_SETHI      = 4,
-    S_OP2_BRANCH_FLT = 6,
-    S_OP2_BRANCH_COP = 7,
+    S_OP2_FBFCC      = 6,
+    S_OP2_CBCCC      = 7,
 };
 
-// op3 (op1 is S_OP1_OTHER)
+// op3 (op1 is S_OP1_ALU)
 enum {
     S_OP3_ADD       = 0x00,
     S_OP3_AND       = 0x01,
@@ -65,6 +65,12 @@ enum {
     S_OP3_RDPSR     = 0x29,
     S_OP3_RDWIM     = 0x2A,
     S_OP3_RDTBR     = 0x2B,
+    
+    S_OP3_TGETFID   = 0x2C,
+    S_OP3_TGETTID   = 0x2D,
+    S_OP3_TGETPIX   = 0x2E,
+    S_OP3_FGETBLKIDX= 0x2F,
+    
     S_OP3_WRASR     = 0x30,
     S_OP3_WRPSR     = 0x31,
     S_OP3_WRWIM     = 0x32,
@@ -75,7 +81,7 @@ enum {
     S_OP3_CPOP2     = 0x37,
     S_OP3_JMPL      = 0x38,
     S_OP3_RETT      = 0x39,
-    S_OP3_Ticc      = 0x3A,
+    S_OP3_TICC      = 0x3A,
     S_OP3_FLUSH     = 0x3B,
     S_OP3_SAVE      = 0x3C,
     S_OP3_RESTORE   = 0x3D,
@@ -90,9 +96,15 @@ enum {
     S_OP3_STB     = 0x05,
     S_OP3_STH     = 0x06,
     S_OP3_STD     = 0x07,
+    
+    S_OP3_FALLOC    = 0x08,
+    
     S_OP3_LDSB    = 0x09,
     S_OP3_LDSH    = 0x0A,
     S_OP3_LDSTUB  = 0x0D,
+    
+    S_OP3_FBREAK    = 0x0E,
+   
     S_OP3_SWAP    = 0x0F,
     S_OP3_LDA     = 0x10,
     S_OP3_LDUBA   = 0x11,
@@ -113,6 +125,16 @@ enum {
     S_OP3_STFSR   = 0x25,
     S_OP3_STDFQ   = 0x26,
     S_OP3_STDF    = 0x27,
+    
+    S_OP3_RALLOCSRB = 0x28,
+    S_OP3_TALLOCHTG = 0x29,
+    S_OP3_RWRITE    = 0x2A,
+    S_OP3_FSETGSIZE = 0x2B,
+    S_OP3_FSETBSIZE = 0x2C,
+    S_OP3_FMAPG     = 0x2D,
+    S_OP3_FCREATE   = 0x2E,
+    S_OP3_TWAIT     = 0x2F,
+    
     S_OP3_LDC     = 0x30,
     S_OP3_LDCSR   = 0x31,
     S_OP3_LDDC    = 0x33,
@@ -120,9 +142,19 @@ enum {
     S_OP3_STCSR   = 0x35,
     S_OP3_STDCQ   = 0x36,
     S_OP3_STDC    = 0x37,
+
+    S_OP3_RFREESRB  = 0x38,
+    S_OP3_TFREEHTG  = 0x39,
+    S_OP3_RREAD     = 0x3A,
+    S_OP3_FGETGSIZE = 0x3B,
+    S_OP3_FGETBSIZE = 0x3C,
+    S_OP3_FMAPHTG   = 0x3D,
+    S_OP3_FFENCE    = 0x3E,
+    S_OP3_TEND      = 0x3F
+
 };
 
-// opf (op1 is S_OP1_OTHER, op3 is S_OP3_FPOP1/2)
+// opf (op1 is S_OP1_ALU, op3 is S_OP3_FPOP1/2)
 enum {
     S_OPF_FMOV    = 0x01,
     S_OPF_FPRINTS = 0x02,
@@ -167,67 +199,14 @@ enum {
     S_OPF_FQTOI   = 0xd3,
 };
 
-/* the following functions are present in the opcode for RDASR/WRASR %ASR20/%ASR19 */
-
-// opt (op1 is S_OP1_OTHER, op3 is S_OP3_RDASR, rs1=20 (0x14))
-enum {
-    S_OPT1_ALLOCATE  = 0x01,
-    /* 0x02 reserved for FPGA create */
-    S_OPT1_GETTID    = 0x03,
-    S_OPT1_GETFID    = 0x04,
-    S_OPT1_GETPID    = 0x05,
-    S_OPT1_GETCID    = 0x06,
-    S_OPT1_CREATE    = 0x07,
-    S_OPT1_SYNC      = 0x08,
-    S_OPT1_ALLOCATES = 0x09,
-    S_OPT1_ALLOCATEX = 0x0A,
-    S_OPT1_GETS      = 0x0B,
-    S_OPT1_GETG      = 0x0C,
-    S_OPT1_FGETS     = 0x0D,
-    S_OPT1_FGETG     = 0x0E,
-};
-
-// opt (op1 is S_OP1_OTHER, op3 is S_OP3_RDASR, rs1=19 (0x13))
-enum {
-    S_OPT2_LDBP      = 0x01,
-    S_OPT2_LDFP      = 0x02,
-    S_OPT2_CREBAS    = 0x03,
-    S_OPT2_CREBIS    = 0x04,
-};
-
-// opt (op1 is S_OP1_OTHER, op3 is S_OP3_WRASR, rd=20 (0x14))
-enum {
-    /* 0x01 reserved for FPGA launch */
-    S_OPT1_SETSTART  = 0x02,
-    S_OPT1_SETLIMIT  = 0x03,
-    S_OPT1_SETSTEP   = 0x04,
-    S_OPT1_SETBLOCK  = 0x05,
-    /* 0x06 reserved for FPGA setthread */
-    S_OPT1_DETACH    = 0x09,
-    S_OPT1_BREAK     = 0x0A,
-    S_OPT1_PUTS      = 0x0B,
-    S_OPT1_PUTG      = 0x0C,
-    S_OPT1_FPUTS     = 0x0D,
-    S_OPT1_FPUTG     = 0x0E,
-};
-
-// opt (op1 is S_OP1_OTHER, op3 is S_OP3_WRASR, rd=19)
-enum {
-
-    S_OPT2_CREBA     = 0x03,
-    S_OPT2_CREBI     = 0x04,
-
-    S_OPT2_PRINT     = 0x0F,
-};
 
 
-
-// DRISC State Register flags
+// LEON2MT State Register flags
 static const PSR PSR_CWP   = 0x0000001FUL; // Current Window Pointer
 static const PSR PSR_ET    = 0x00000020UL; // Enable Traps
 static const PSR PSR_PS    = 0x00000040UL; // Previous Supervisor
 static const PSR PSR_S     = 0x00000080UL; // Supervisor
-static const PSR PSR_PIL   = 0x00000F00UL; // DRISC Interrupt Level
+static const PSR PSR_PIL   = 0x00000F00UL; // LEON2MT Interrupt Level
 static const PSR PSR_EF    = 0x00001000UL; // Enable Floating Point
 static const PSR PSR_EC    = 0x00002000UL; // Enable Coprocessor
 static const PSR PSR_ICC   = 0x00F00000UL; // Integer Condition Codes

@@ -11,7 +11,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 struct Family
@@ -109,7 +109,7 @@ struct Family
 class FamilyTable : public Object, public Inspect::Interface<Inspect::Read>
 {
 public:
-    FamilyTable(const std::string& name, DRISC& parent);
+    FamilyTable(const std::string& name, LEON2MT& parent);
 
     FSize GetNumFamilies() const { return m_families.size(); }
 
@@ -136,7 +136,7 @@ public:
     TSize GetMaxAllocated() const { return m_maxalloc; }
 
 private:
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
     std::vector<Family> m_families;
     FSize               m_free[NUM_CONTEXT_TYPES];
 

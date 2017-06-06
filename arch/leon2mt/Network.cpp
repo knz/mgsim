@@ -1,5 +1,5 @@
-#include <arch/drisc/Network.h>
-#include <arch/drisc/DRISC.h>
+#include <arch/leon2mt/Network.h>
+#include <arch/leon2mt/LEON2MT.h>
 #include <sim/config.h>
 #include <sim/log2.h>
 
@@ -11,19 +11,19 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 Network::Network(
     const std::string&    name,
-    DRISC&                parent,
+    LEON2MT&                parent,
     Clock&                clock,
-    const vector<DRISC*>& grid)
+    const vector<LEON2MT*>& grid)
   : Object(name, parent),
 
     m_regFile    (parent.GetRegisterFile()),
     m_familyTable(parent.GetFamilyTable()),
-    m_allocator  (parent.GetAllocator()),
+    m_tmu  (parent.GetTMU()),
 
     m_prev(NULL),
     m_next(NULL),
@@ -83,7 +83,7 @@ bool Network::SendMessage(const RemoteMessage& msg)
 
     // Delegated message
     DelegateMessage dmsg;
-    dmsg.src = GetDRISC().GetPID();
+    dmsg.src = GetLEON2MT().GetPID();
 
     // Get destination
     switch (msg.type)
@@ -201,7 +201,7 @@ Result Network::DoSyncs()
         return FAILED;
     }
 
-    if (!m_allocator.DecreaseFamilyDependency(info.fid, FAMDEP_SYNC_SENT))
+    if (!m_tmu.DecreaseFamilyDependency(info.fid, FAMDEP_SYNC_SENT))
     {
         UNREACHABLE;
         DeadlockWrite("F%u unable to mark SYNC_SENT after sending writeback %u", (unsigned)info.fid, (unsigned)info.broken);
@@ -231,7 +231,7 @@ Result Network::DoAllocResponse()
     COMMIT{ family.link = msg.next_fid; }
 
     // Number of cores in the place up to, and including, this core
-    const PSize numCores = (GetDRISC().GetPID() % family.placeSize) + 1;
+    const PSize numCores = (GetLEON2MT().GetPID() % family.placeSize) + 1;
 
     if (msg.numCores == 0 && !msg.exact && IsPowerOfTwo(numCores))
     {
@@ -245,7 +245,7 @@ Result Network::DoAllocResponse()
     if (msg.numCores == 0)
     {
         // Unwind the allocation by releasing the context
-        m_allocator.ReleaseContext(lfid);
+        m_tmu.ReleaseContext(lfid);
     }
     else
     {
@@ -273,7 +273,7 @@ Result Network::DoAllocResponse()
         }
         else
         {
-            fid.pid        = GetDRISC().GetPID();
+            fid.pid        = GetLEON2MT().GetPID();
             fid.lfid       = lfid;
             fid.capability = family.capability;
 
@@ -285,7 +285,7 @@ Result Network::DoAllocResponse()
         fwd.rawreg.pid             = msg.completion_pid;
         fwd.rawreg.addr            = MAKE_REGADDR(RT_INTEGER, msg.completion_reg);
         fwd.rawreg.value.m_state   = RST_FULL;
-        fwd.rawreg.value.m_integer = GetDRISC().PackFID(fid);
+        fwd.rawreg.value.m_integer = GetLEON2MT().PackFID(fid);
 
         if (!SendMessage(fwd))
         {
@@ -303,7 +303,7 @@ Result Network::DoAllocResponse()
     }
 
     DebugSimWrite("F%u backward allocation response to CPU%u/F%u",
-                  (unsigned)lfid, (unsigned)(GetDRISC().GetPID() - 1), (unsigned)msg.prev_fid);
+                  (unsigned)lfid, (unsigned)(GetLEON2MT().GetPID() - 1), (unsigned)msg.prev_fid);
 
     m_allocResponse.in.Clear();
     return SUCCESS;
@@ -311,7 +311,7 @@ Result Network::DoAllocResponse()
 
 bool Network::ReadRegister(LFID fid, RemoteRegType kind, const RegAddr& raddr, RegValue& value)
 {
-    const RegAddr addr = m_allocator.GetRemoteRegisterAddress(fid, kind, raddr);
+    const RegAddr addr = m_tmu.GetRemoteRegisterAddress(fid, kind, raddr);
     assert(addr != INVALID_REG);
 
     // The thread of the register has been allocated, read it
@@ -360,7 +360,7 @@ bool Network::ReadRegister(LFID fid, RemoteRegType kind, const RegAddr& raddr, R
 
 bool Network::WriteRegister(LFID fid, RemoteRegType kind, const RegAddr& raddr, const RegValue& value)
 {
-    RegAddr addr = m_allocator.GetRemoteRegisterAddress(fid, kind, raddr);
+    RegAddr addr = m_tmu.GetRemoteRegisterAddress(fid, kind, raddr);
     if (addr != INVALID_REG)
     {
         // Write it
@@ -439,7 +439,7 @@ bool Network::OnSync(LFID fid, PID completion_pid, RegIndex completion_reg)
 
 bool Network::OnDetach(LFID fid)
 {
-    if (!m_allocator.DecreaseFamilyDependency(fid, FAMDEP_DETACHED))
+    if (!m_tmu.DecreaseFamilyDependency(fid, FAMDEP_DETACHED))
     {
         DeadlockWrite("Unable to mark family detachment of F%u", (unsigned)fid);
         return false;
@@ -468,7 +468,7 @@ bool Network::OnBreak(LFID fid)
 
     if (!family.dependencies.allocationDone)
     {
-        if (!m_allocator.DecreaseFamilyDependency(fid, FAMDEP_ALLOCATION_DONE))
+        if (!m_tmu.DecreaseFamilyDependency(fid, FAMDEP_ALLOCATION_DONE))
         {
             DeadlockWrite("F%u unable to mark ALLOCATION_DONE due to break", (unsigned)fid);
             return false;
@@ -499,8 +499,8 @@ Result Network::DoDelegationOut()
     // Send outgoing message over the delegation network
     assert(!m_delegateOut.Empty());
     const DelegateMessage& msg = m_delegateOut.Read();
-    assert(msg.src == GetDRISC().GetPID());
-    assert(msg.dest != GetDRISC().GetPID());
+    assert(msg.src == GetLEON2MT().GetPID());
+    assert(msg.dest != GetLEON2MT().GetPID());
 
     // Send to destination
     if (!m_grid[msg.dest]->GetNetwork().m_delegateIn.Write(msg))
@@ -521,7 +521,7 @@ Result Network::DoDelegationIn()
     assert(!m_delegateIn.Empty());
     DelegateMessage dmsg = m_delegateIn.Read();
     m_delegateIn.Clear();
-    assert(dmsg.dest == GetDRISC().GetPID());
+    assert(dmsg.dest == GetLEON2MT().GetPID());
 
     RemoteMessage& msg = dmsg.payload;
     DebugNetWrite("accepted delegation message %s", msg.str().c_str());
@@ -539,7 +539,7 @@ Result Network::DoDelegationIn()
                 LinkMessage fwd;
                 fwd.type = LinkMessage::MSG_BALLOCATE;
                 fwd.ballocate.min_contexts   = used_contexts;
-                fwd.ballocate.min_pid        = GetDRISC().GetPID();
+                fwd.ballocate.min_pid        = GetLEON2MT().GetPID();
                 fwd.ballocate.size           = msg.allocate.place.size;
                 fwd.ballocate.suspend        = msg.allocate.suspend;
                 fwd.ballocate.completion_pid = msg.allocate.completion_pid;
@@ -556,7 +556,7 @@ Result Network::DoDelegationIn()
             msg.allocate.type = ALLOCATE_SINGLE;
         }
 
-        if (!m_allocator.QueueFamilyAllocation(msg))
+        if (!m_tmu.QueueFamilyAllocation(msg))
         {
             DeadlockWrite("Unable to process family allocation request");
             return FAILED;
@@ -569,7 +569,7 @@ Result Network::DoDelegationIn()
 
     case RemoteMessage::MSG_SET_PROPERTY:
     {
-        auto& family = m_allocator.GetFamilyChecked(msg.property.fid.lfid, msg.property.fid.capability);
+        auto& family = m_tmu.GetFamilyChecked(msg.property.fid.lfid, msg.property.fid.capability);
         COMMIT
         {
             switch (msg.property.type)
@@ -597,7 +597,7 @@ Result Network::DoDelegationIn()
             }
             DebugSimWrite("F%u forwarded property to CPU%u/F%u",
                           (unsigned)msg.property.fid.lfid,
-                          (unsigned)(GetDRISC().GetPID() + 1),
+                          (unsigned)(GetLEON2MT().GetPID() + 1),
                           (unsigned)family.link);
         }
         DebugSimWrite("F%u set property %u %llu",
@@ -610,7 +610,7 @@ Result Network::DoDelegationIn()
     case RemoteMessage::MSG_CREATE:
         {
             // Process the received delegated create
-            if (!m_allocator.QueueCreate(msg))
+            if (!m_tmu.QueueCreate(msg))
             {
                 DeadlockWrite("Unable to process received delegation create");
                 return FAILED;
@@ -623,7 +623,7 @@ Result Network::DoDelegationIn()
 
     case RemoteMessage::MSG_SYNC:
         // Authorize family access
-        m_allocator.GetFamilyChecked(msg.sync.fid.lfid, msg.sync.fid.capability);
+        m_tmu.GetFamilyChecked(msg.sync.fid.lfid, msg.sync.fid.capability);
         if (!OnSync(msg.sync.fid.lfid, dmsg.src, msg.sync.completion_reg))
         {
             return FAILED;
@@ -632,7 +632,7 @@ Result Network::DoDelegationIn()
 
     case RemoteMessage::MSG_DETACH:
         // Authorize family access
-        m_allocator.GetFamilyChecked(msg.detach.fid.lfid, msg.detach.fid.capability);
+        m_tmu.GetFamilyChecked(msg.detach.fid.lfid, msg.detach.fid.capability);
         if (!OnDetach(msg.detach.fid.lfid))
         {
             return FAILED;
@@ -671,7 +671,7 @@ Result Network::DoDelegationIn()
 
     case RemoteMessage::MSG_FAM_REGISTER:
     {
-        auto& family = m_allocator.GetFamilyChecked(msg.famreg.fid.lfid, msg.famreg.fid.capability);
+        auto& family = m_tmu.GetFamilyChecked(msg.famreg.fid.lfid, msg.famreg.fid.capability);
 
         if (msg.famreg.write)
         {
@@ -734,7 +734,7 @@ Result Network::DoLink()
     switch (msg.type)
     {
     case LinkMessage::MSG_ALLOCATE:
-        if (!m_allocator.QueueFamilyAllocation(msg))
+        if (!m_tmu.QueueFamilyAllocation(msg))
         {
             DeadlockWrite("Unable to process family allocation request");
             return FAILED;
@@ -744,12 +744,12 @@ Result Network::DoLink()
     case LinkMessage::MSG_BALLOCATE:
     {
         RemoteMessage rmsg;
-        rmsg.allocate.place.pid = GetDRISC().GetPID();
+        rmsg.allocate.place.pid = GetLEON2MT().GetPID();
 
         unsigned used_contexts = m_familyTable.GetNumUsedFamilies(CONTEXT_NORMAL);
         if (used_contexts >= m_loadBalanceThreshold)
         {
-            if ((GetDRISC().GetPID() + 1) % msg.ballocate.size != 0)
+            if ((GetLEON2MT().GetPID() + 1) % msg.ballocate.size != 0)
             {
                 // Not the last core yet; forward the message
                 LinkMessage fwd(msg);
@@ -757,7 +757,7 @@ Result Network::DoLink()
                 {
                     // This core's the new minimum
                     fwd.ballocate.min_contexts = used_contexts;
-                    fwd.ballocate.min_pid      = GetDRISC().GetPID();
+                    fwd.ballocate.min_pid      = GetLEON2MT().GetPID();
                 }
 
                 if (!SendMessage(std::move(fwd)))
@@ -839,12 +839,12 @@ Result Network::DoLink()
                 DebugSimWrite("F%u forwarded restrict message", (unsigned)msg.create.fid);
             }
 
-            m_allocator.ReleaseContext(msg.create.fid);
+            m_tmu.ReleaseContext(msg.create.fid);
             DebugSimWrite("F%u cleaned up (restricted due to create)", (unsigned)msg.create.fid);
         }
         // Process the received create.
         // This will forward the message.
-        else if (!m_allocator.QueueCreate(msg))
+        else if (!m_tmu.QueueCreate(msg))
         {
             DeadlockWrite("Unable to process received place create");
             return FAILED;
@@ -858,7 +858,7 @@ Result Network::DoLink()
 
         COMMIT { family.broken |= msg.done.broken; }
 
-        if (!m_allocator.DecreaseFamilyDependency(msg.done.fid, FAMDEP_PREV_SYNCHRONIZED))
+        if (!m_tmu.DecreaseFamilyDependency(msg.done.fid, FAMDEP_PREV_SYNCHRONIZED))
         {
             DeadlockWrite("Unable to mark family synchronization on F%u", (unsigned)msg.done.fid);
             return FAILED;

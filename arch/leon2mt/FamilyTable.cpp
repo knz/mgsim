@@ -1,5 +1,5 @@
 #include "FamilyTable.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 #include <sim/range.h>
 #include <sim/sampling.h>
@@ -11,10 +11,10 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-FamilyTable::FamilyTable(const std::string& name, DRISC& parent)
+FamilyTable::FamilyTable(const std::string& name, LEON2MT& parent)
 :   Object(name, parent),
     m_families(GetConf("NumEntries", size_t)),
     InitSampleVariable(lastcycle, SVC_CUMULATIVE),
@@ -188,7 +188,7 @@ void FamilyTable::Cmd_Read(ostream& out, const vector<string>& arguments) const
         }
     }
 
-    DRISC& parent = GetDRISC();
+    LEON2MT& parent = GetLEON2MT();
     SymbolTable& symtable = parent.GetSymbolTable();
 
     if (fids.empty())

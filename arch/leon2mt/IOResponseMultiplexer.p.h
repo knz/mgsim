@@ -5,11 +5,11 @@
 #include <sim/kernel.h>
 #include <sim/buffer.h>
 #include <arch/IOBus.h>
-#include <arch/drisc/forward.h>
+#include <arch/leon2mt/forward.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class IOResponseMultiplexer : public Object
@@ -34,7 +34,7 @@ private:
     Process p_dummy;
     Result DoNothing();
 
-    Object& GetDRISCParent() const { return *GetParent()->GetParent(); };
+    Object& GetLEON2MTParent() const { return *GetParent()->GetParent(); };
 public:
     IOResponseMultiplexer(const std::string& name, IOInterface& parent, Clock& clock, size_t numDevices);
     ~IOResponseMultiplexer();

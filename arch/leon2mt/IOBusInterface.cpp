@@ -1,12 +1,12 @@
 #include "IOInterface.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 #include <sstream>
 #include <cstring>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
     IOBusInterface::IOBusInterface(const std::string& name, IOInterface& parent,
@@ -133,13 +133,13 @@ namespace drisc
 
     bool IOBusInterface::OnActiveMessageReceived(IODeviceID /*from*/, MemAddr addr, Integer arg)
     {
-        return GetDRISC().Boot(addr, !!arg);
+        return GetLEON2MT().Boot(addr, !!arg);
     }
 
     StorageTraceSet IOBusInterface::GetActiveMessageTraces() const
     {
         StorageTraceSet res;
-        res = GetDRISC().GetAllocator().m_allocRequestsNoSuspend;
+        res = GetLEON2MT().GetTMU().m_allocRequestsNoSuspend;
         return res;
     }
 

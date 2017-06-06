@@ -527,10 +527,13 @@ Instruction UnserializeInstruction(const void* data);
 //
 #if defined(TARGET_MTALPHA)
 typedef uint64_t FPCR;  // Floating Point Control Register
+typedef uint32_t PSR;   // Processor State Register
+typedef uint32_t FSR;   // Floating-Point State Register
 #elif defined(TARGET_MTSPARC)
 typedef uint32_t PSR;   // Processor State Register
 typedef uint32_t FSR;   // Floating-Point State Register
 #endif
+
 
 }
 #endif

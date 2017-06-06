@@ -1,4 +1,4 @@
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/FPU.h>
 #include <sim/sampling.h>
 #include <sim/log2.h>
@@ -12,12 +12,12 @@ using namespace std;
 namespace Simulator
 {
 
-using namespace drisc;
+using namespace leon2mt;
 
 //
-// DRISC implementation
+// LEON2MT implementation
 //
-DRISC::DRISC(const std::string& name, Object& parent, Clock& clock, PID pid, const vector<DRISC*>& grid, BreakPointManager& bp)
+LEON2MT::LEON2MT(const std::string& name, Object& parent, Clock& clock, PID pid, const vector<LEON2MT*>& grid, BreakPointManager& bp)
 :   Object(name, parent),
     m_clock(clock),
     m_bp_manager(bp),
@@ -33,7 +33,7 @@ DRISC::DRISC(const std::string& name, Object& parent, Clock& clock, PID pid, con
     m_threadTable ("threads",       *this),
     m_registerFile("registers",     *this, clock),
     m_raunit      ("rau",           *this, m_registerFile.GetSizes()),
-    m_allocator   ("alloc",         *this, clock),
+    m_tmu   ("tmu",         *this, clock),
     m_icache      ("icache",        *this, clock),
     m_dcache      ("dcache",        *this, clock),
     m_pipeline    ("pipeline",      *this, clock),
@@ -118,12 +118,12 @@ DRISC::DRISC(const std::string& name, Object& parent, Clock& clock, PID pid, con
     }
 }
 
-DRISC::~DRISC()
+LEON2MT::~LEON2MT()
 {
     delete m_io_if;
 }
 
-void DRISC::ConnectMemory(IMemory* memory, IMemoryAdmin* admin)
+void LEON2MT::ConnectMemory(IMemory* memory, IMemoryAdmin* admin)
 {
     m_memory = memory;
     m_memadmin = admin;
@@ -134,12 +134,12 @@ void DRISC::ConnectMemory(IMemory* memory, IMemoryAdmin* admin)
         m_io_if->ConnectMemory(memory);
 }
 
-void DRISC::ConnectLink(DRISC* prev, DRISC* next)
+void LEON2MT::ConnectLink(LEON2MT* prev, LEON2MT* next)
 {
     m_network.Connect(prev != NULL ? &prev->m_network : NULL, next != NULL ? &next->m_network : NULL);
 }
 
-void DRISC::ConnectFPU(FPU* fpu)
+void LEON2MT::ConnectFPU(FPU* fpu)
 {
     assert(fpu != NULL);
 
@@ -149,7 +149,7 @@ void DRISC::ConnectFPU(FPU* fpu)
     RegisterModelBidiRelation(*this, *fpu, "fpu");
 }
 
-void DRISC::ConnectIO(IOMessageInterface* ioif)
+void LEON2MT::ConnectIO(IOMessageInterface* ioif)
 {
     assert(ioif != NULL);
 
@@ -169,7 +169,7 @@ void DRISC::ConnectIO(IOMessageInterface* ioif)
     RegisterModelBidiRelation(*ioif, *this, "client", (uint32_t)devid);
 }
 
-void DRISC::Initialize()
+void LEON2MT::Initialize()
 {
     // First finish initializing the components
     m_network.Initialize();
@@ -182,28 +182,28 @@ void DRISC::Initialize()
     //
 
     m_icache.p_service.AddProcess(m_icache.p_Incoming);             // Cache-line returns
-    m_icache.p_service.AddProcess(m_allocator.p_ThreadActivation);  // Thread activation
-    m_icache.p_service.AddProcess(m_allocator.p_FamilyCreate);      // Create process
+    m_icache.p_service.AddProcess(m_tmu.p_ThreadActivation);  // Thread activation
+    m_icache.p_service.AddProcess(m_tmu.p_FamilyCreate);      // Create process
 
     // Unfortunately the D-Cache needs priority here because otherwise all cache-lines can
     // remain filled and we get deadlock because the pipeline keeps wanting to do a read.
     m_dcache.p_service.AddProcess(m_dcache.p_ReadResponses);     // Memory read returns
     m_dcache.p_service.AddProcess(m_pipeline.p_Pipeline);         // Memory read/write
-    m_dcache.p_service.AddProcess(m_allocator.p_BundleCreate);    // Indirect create read
+    m_dcache.p_service.AddProcess(m_tmu.p_BundleCreate);    // Indirect create read
 
-    m_allocator.p_allocation.AddProcess(m_pipeline.p_Pipeline);         // ALLOCATE instruction
-    m_allocator.p_allocation.AddProcess(m_network.p_DelegationIn);      // Delegated non-exclusive create
-    m_allocator.p_allocation.AddProcess(m_allocator.p_FamilyAllocate);  // Delayed ALLOCATE instruction
+    m_tmu.p_allocation.AddProcess(m_pipeline.p_Pipeline);         // ALLOCATE instruction
+    m_tmu.p_allocation.AddProcess(m_network.p_DelegationIn);      // Delegated non-exclusive create
+    m_tmu.p_allocation.AddProcess(m_tmu.p_FamilyAllocate);  // Delayed ALLOCATE instruction
 
-    m_allocator.p_alloc.AddProcess(m_network.p_Link);                   // Place-wide create
-    m_allocator.p_alloc.AddProcess(m_allocator.p_FamilyCreate);         // Local creates
+    m_tmu.p_alloc.AddProcess(m_network.p_Link);                   // Place-wide create
+    m_tmu.p_alloc.AddProcess(m_tmu.p_FamilyCreate);         // Local creates
 
     if (m_io_if != NULL)
     {
         IONotificationMultiplexer &nmux = m_io_if->GetNotificationMultiplexer();
 
-        m_allocator.p_readyThreads.AddProcess(nmux.p_IncomingNotifications); // Thread wakeup due to notification
-        m_allocator.p_readyThreads.AddProcess(m_io_if->GetReadResponseMultiplexer().p_IncomingReadResponses); // Thread wakeup due to I/O read completion
+        m_tmu.p_readyThreads.AddProcess(nmux.p_IncomingNotifications); // Thread wakeup due to notification
+        m_tmu.p_readyThreads.AddProcess(m_io_if->GetReadResponseMultiplexer().p_IncomingReadResponses); // Thread wakeup due to I/O read completion
 
         for (size_t i = 0; i < nmux.m_services.size(); ++i)
         {
@@ -212,20 +212,20 @@ void DRISC::Initialize()
         }
     }
 
-    m_allocator.p_readyThreads.AddProcess(m_network.p_Link);                // Thread wakeup due to write
-    m_allocator.p_readyThreads.AddProcess(m_network.p_DelegationIn);        // Thread wakeup due to write
-    m_allocator.p_readyThreads.AddProcess(m_dcache.p_ReadWritebacks);        // Thread wakeup due to load completion
-    m_allocator.p_readyThreads.AddProcess(m_dcache.p_WriteResponses);       // Thread wakeup due to write completion
+    m_tmu.p_readyThreads.AddProcess(m_network.p_Link);                // Thread wakeup due to write
+    m_tmu.p_readyThreads.AddProcess(m_network.p_DelegationIn);        // Thread wakeup due to write
+    m_tmu.p_readyThreads.AddProcess(m_dcache.p_ReadWritebacks);        // Thread wakeup due to load completion
+    m_tmu.p_readyThreads.AddProcess(m_dcache.p_WriteResponses);       // Thread wakeup due to write completion
     if (m_fpu != NULL)
     {
-        m_allocator.p_readyThreads.AddProcess(m_fpu->p_Pipeline);                // Thread wakeup due to FP completion
+        m_tmu.p_readyThreads.AddProcess(m_fpu->p_Pipeline);                // Thread wakeup due to FP completion
     }
-    m_allocator.p_readyThreads.AddProcess(m_allocator.p_ThreadAllocate);    // Thread creation
-    m_allocator.p_readyThreads.AddProcess(m_allocator.p_FamilyAllocate);    // Thread wakeup due to family allocation
-    m_allocator.p_readyThreads.AddProcess(m_allocator.p_FamilyCreate);      // Thread wakeup due to local create completion
+    m_tmu.p_readyThreads.AddProcess(m_tmu.p_ThreadAllocate);    // Thread creation
+    m_tmu.p_readyThreads.AddProcess(m_tmu.p_FamilyAllocate);    // Thread wakeup due to family allocation
+    m_tmu.p_readyThreads.AddProcess(m_tmu.p_FamilyCreate);      // Thread wakeup due to local create completion
 
-    m_allocator.p_activeThreads.AddProcess(m_icache.p_Incoming);            // Thread activation due to I-Cache line return
-    m_allocator.p_activeThreads.AddProcess(m_allocator.p_ThreadActivation); // Thread activation due to I-Cache hit (from Ready Queue)
+    m_tmu.p_activeThreads.AddProcess(m_icache.p_Incoming);            // Thread activation due to I-Cache line return
+    m_tmu.p_activeThreads.AddProcess(m_tmu.p_ThreadActivation); // Thread activation due to I-Cache hit (from Ready Queue)
 
     if (m_io_if != NULL)
     {
@@ -241,8 +241,8 @@ void DRISC::Initialize()
     {
         m_registerFile.p_asyncW.AddProcess(m_fpu->p_Pipeline);                   // FPU Op writebacks
     }
-    m_registerFile.p_asyncW.AddProcess(m_allocator.p_FamilyCreate);         // Family creation
-    m_registerFile.p_asyncW.AddProcess(m_allocator.p_ThreadAllocate);       // Thread allocation
+    m_registerFile.p_asyncW.AddProcess(m_tmu.p_FamilyCreate);         // Family creation
+    m_registerFile.p_asyncW.AddProcess(m_tmu.p_ThreadAllocate);       // Thread allocation
 
 
     m_registerFile.p_asyncR.AddProcess(m_network.p_DelegationIn);           // Remote register requests
@@ -253,23 +253,23 @@ void DRISC::Initialize()
     m_registerFile.p_pipelineW .SetProcess(m_pipeline.p_Pipeline);          // Pipeline writeback stage
 
     m_network.m_allocResponse.out.AddProcess(m_network.p_AllocResponse);    // Forwarding allocation response
-    m_network.m_allocResponse.out.AddProcess(m_allocator.p_FamilyAllocate); // Sending allocation response
+    m_network.m_allocResponse.out.AddProcess(m_tmu.p_FamilyAllocate); // Sending allocation response
 
     m_network.m_link.out.AddProcess(m_network.p_Link);                      // Forwarding link messages
     m_network.m_link.out.AddProcess(m_network.p_DelegationIn);              // Delegation message forwards onto link
     m_network.m_link.out.AddProcess(m_dcache.p_ReadWritebacks);             // Completed read causes sync
-    m_network.m_link.out.AddProcess(m_allocator.p_FamilyAllocate);          // Allocate process sending place-wide allocate
-    m_network.m_link.out.AddProcess(m_allocator.p_FamilyCreate);            // Create process sends place-wide create
-    m_network.m_link.out.AddProcess(m_allocator.p_ThreadAllocate);          // Thread cleanup causes sync
+    m_network.m_link.out.AddProcess(m_tmu.p_FamilyAllocate);          // Allocate process sending place-wide allocate
+    m_network.m_link.out.AddProcess(m_tmu.p_FamilyCreate);            // Create process sends place-wide create
+    m_network.m_link.out.AddProcess(m_tmu.p_ThreadAllocate);          // Thread cleanup causes sync
 
     m_network.m_delegateIn.AddProcess(m_network.p_Link);                    // Link messages causes remote
 
     m_network.m_delegateIn.AddProcess(m_dcache.p_ReadWritebacks);           // Read completion causes sync
 
-    m_network.m_delegateIn.AddProcess(m_allocator.p_ThreadAllocate);        // Allocate process completes family sync
-    m_network.m_delegateIn.AddProcess(m_allocator.p_FamilyAllocate);        // Allocate process returning FID
-    m_network.m_delegateIn.AddProcess(m_allocator.p_BundleCreate);          // Create process returning FID
-    m_network.m_delegateIn.AddProcess(m_allocator.p_FamilyCreate);          // Create process returning FID
+    m_network.m_delegateIn.AddProcess(m_tmu.p_ThreadAllocate);        // Allocate process completes family sync
+    m_network.m_delegateIn.AddProcess(m_tmu.p_FamilyAllocate);        // Allocate process returning FID
+    m_network.m_delegateIn.AddProcess(m_tmu.p_BundleCreate);          // Create process returning FID
+    m_network.m_delegateIn.AddProcess(m_tmu.p_FamilyCreate);          // Create process returning FID
     m_network.m_delegateIn.AddProcess(m_network.p_AllocResponse);           // Allocate response writing back to parent
     m_network.m_delegateIn.AddProcess(m_pipeline.p_Pipeline);               // Sending local messages
     for (size_t i = 0; i < m_grid.size(); i++)
@@ -286,10 +286,10 @@ void DRISC::Initialize()
     m_network.m_delegateOut.AddProcess(m_dcache.p_ReadWritebacks);    // Read completion causes sync
 
     m_network.m_delegateOut.AddProcess(m_network.p_AllocResponse);    // Allocate response writing back to parent
-    m_network.m_delegateOut.AddProcess(m_allocator.p_FamilyAllocate); // Allocation process sends FID
-    m_network.m_delegateOut.AddProcess(m_allocator.p_BundleCreate);   // Indirect creation sends bundle info
-    m_network.m_delegateOut.AddProcess(m_allocator.p_FamilyCreate);   // Create process sends delegated create
-    m_network.m_delegateOut.AddProcess(m_allocator.p_ThreadAllocate); // Thread cleanup caused sync
+    m_network.m_delegateOut.AddProcess(m_tmu.p_FamilyAllocate); // Allocation process sends FID
+    m_network.m_delegateOut.AddProcess(m_tmu.p_BundleCreate);   // Indirect creation sends bundle info
+    m_network.m_delegateOut.AddProcess(m_tmu.p_FamilyCreate);   // Create process sends delegated create
+    m_network.m_delegateOut.AddProcess(m_tmu.p_ThreadAllocate); // Thread cleanup caused sync
     m_network.m_delegateOut.AddProcess(m_network.p_Syncs);            // Family sync goes to delegation
 
     //
@@ -310,53 +310,53 @@ void DRISC::Initialize()
     // Anything that is delegated can either go local or remote
 #define DELEGATE (m_network.m_delegateIn ^ m_network.m_delegateOut)
 
-    m_allocator.p_ThreadAllocate.SetStorageTraces(
-        /* THREADDEP_PREV_CLEANED_UP */ (opt(m_allocator.m_cleanup) *
+    m_tmu.p_ThreadAllocate.SetStorageTraces(
+        /* THREADDEP_PREV_CLEANED_UP */ (opt(m_tmu.m_cleanup) *
         /* FAMDEP_THREAD_COUNT */        opt(m_network.m_link.out ^ m_network.m_syncs ^
-        /* AllocateThread */                 m_allocator.m_readyThreadsOther)) ^
+        /* AllocateThread */                 m_tmu.m_readyThreadsOther)) ^
         /* FAMDEP_ALLOCATION_DONE */    (opt(m_network.m_link.out ^ m_network.m_syncs) *
-        /* AllocateThread */             opt(m_allocator.m_readyThreadsOther)) );
+        /* AllocateThread */             opt(m_tmu.m_readyThreadsOther)) );
 
-    m_allocator.p_FamilyAllocate.SetStorageTraces(
-        m_network.m_allocResponse.out ^ m_allocator.m_creates ^ m_network.m_link.out ^ DELEGATE * opt(DELEGATE) );
+    m_tmu.p_FamilyAllocate.SetStorageTraces(
+        m_network.m_allocResponse.out ^ m_tmu.m_creates ^ m_network.m_link.out ^ DELEGATE * opt(DELEGATE) );
 
-    m_allocator.p_FamilyCreate.SetStorageTraces(
+    m_tmu.p_FamilyCreate.SetStorageTraces(
         /* CREATE_INITIAL */                opt(m_icache.m_outgoing) ^
         /* CREATE_BROADCASTING_CREATE */    opt(m_network.m_link.out) ^
-        /* CREATE_ACTIVATING_FAMILY */      m_allocator.m_alloc ^
+        /* CREATE_ACTIVATING_FAMILY */      m_tmu.m_alloc ^
         /* CREATE_NOTIFY */                 opt(DELEGATE) );
 
-    m_allocator.p_ThreadActivation.SetStorageTraces(
-        ( m_allocator.m_readyThreadsPipe ^ m_allocator.m_readyThreadsOther ) * opt(m_allocator.m_activeThreads ^ m_icache.m_outgoing) );
+    m_tmu.p_ThreadActivation.SetStorageTraces(
+        ( m_tmu.m_readyThreadsPipe ^ m_tmu.m_readyThreadsOther ) * opt(m_tmu.m_activeThreads ^ m_icache.m_outgoing) );
 
-    m_allocator.p_BundleCreate.SetStorageTraces( m_dcache.m_outgoing ^ DELEGATE );
+    m_tmu.p_BundleCreate.SetStorageTraces( m_dcache.m_outgoing ^ DELEGATE );
 
     m_icache.p_Incoming.SetStorageTraces(
-        opt(m_allocator.m_activeThreads) );
+        opt(m_tmu.m_activeThreads) );
 
     // m_icache.p_Outgoing is set in the memory
 
     m_dcache.p_WriteResponses.SetStorageTraces(
-        /* Writes */    opt(m_allocator.m_readyThreadsOther) ^ opt(m_allocator.m_cleanup) );
+        /* Writes */    opt(m_tmu.m_readyThreadsOther) ^ opt(m_tmu.m_cleanup) );
 
     m_dcache.p_ReadResponses.SetStorageTraces(opt(m_dcache.m_writebacks));
 
     m_dcache.p_ReadWritebacks.SetStorageTraces(
-        /* Thread wakeup */ opt(m_allocator.m_readyThreadsOther) *
+        /* Thread wakeup */ opt(m_tmu.m_readyThreadsOther) *
         /* Family sync */   opt(m_network.m_link.out ^ m_network.m_syncs) );
 
     // m_dcache.p_Outgoing is set in the memory
 
     StorageTraceSet pls_writeback =
         opt(DELEGATE) *
-        opt(m_allocator.m_bundle ^ /* FIXME: is the bundle creation buffer really involved here? */
-            (m_allocator.m_readyThreadsPipe * m_allocator.m_cleanup) ^
-            m_allocator.m_cleanup ^
-            m_allocator.m_readyThreadsPipe);
+        opt(m_tmu.m_bundle ^ /* FIXME: is the bundle creation buffer really involved here? */
+            (m_tmu.m_readyThreadsPipe * m_tmu.m_cleanup) ^
+            m_tmu.m_cleanup ^
+            m_tmu.m_readyThreadsPipe);
     StorageTraceSet pls_memory =
         m_dcache.m_outgoing;
     StorageTraceSet pls_fetch =
-        m_allocator.m_activeThreads;
+        m_tmu.m_activeThreads;
 
     if (m_io_if != NULL)
     {
@@ -374,7 +374,7 @@ void DRISC::Initialize()
     StorageTraceSet pls_execute;
     if (m_fpu != NULL)
         pls_execute = m_fpu->GetSourceTrace(m_pipeline.GetFPUSource());
-    pls_execute ^= m_allocator.m_bundle;
+    pls_execute ^= m_tmu.m_bundle;
 
     m_pipeline.p_Pipeline.SetStorageTraces(
         /* Writeback */ opt(pls_writeback) *
@@ -384,29 +384,29 @@ void DRISC::Initialize()
                         m_pipeline.m_active );
 
     m_network.p_DelegationIn.SetStorageTraces(m_network.m_delegateIn * (
-        /* MSG_ALLOCATE */          (m_network.m_link.out ^ m_allocator.m_allocRequestsExclusive ^
-                                     m_allocator.m_allocRequestsSuspend ^ m_allocator.m_allocRequestsNoSuspend) ^
+        /* MSG_ALLOCATE */          (m_network.m_link.out ^ m_tmu.m_allocRequestsExclusive ^
+                                     m_tmu.m_allocRequestsSuspend ^ m_tmu.m_allocRequestsNoSuspend) ^
         /* MSG_SET_PROPERTY */      (m_network.m_link.out) ^
-        /* MSG_CREATE */            (m_allocator.m_creates) ^
+        /* MSG_CREATE */            (m_tmu.m_creates) ^
         /* MSG_SYNC */              opt(m_network.m_link.out ^ m_network.m_syncs) ^
         /* MSG_DETACH */            opt(m_network.m_link.out) ^
         /* MSG_BREAK */             (opt(m_network.m_syncs) * opt(m_network.m_link.out)) ^
-        /* MSG_RAW_REGISTER */      m_allocator.m_readyThreadsOther ^
+        /* MSG_RAW_REGISTER */      m_tmu.m_readyThreadsOther ^
         /* RRT_LAST_SHARED */       (DELEGATE) ^
-        /* RRT_FIRST_DEPENDENT */   (m_allocator.m_readyThreadsOther) ^
-        /* RRT_GLOBAL */            (m_allocator.m_readyThreadsOther * opt(m_network.m_link.out))
+        /* RRT_FIRST_DEPENDENT */   (m_tmu.m_readyThreadsOther) ^
+        /* RRT_GLOBAL */            (m_tmu.m_readyThreadsOther * opt(m_network.m_link.out))
                                                   ));
 
     m_network.p_Link.SetStorageTraces((
-        /* MSG_ALLOCATE */          (m_allocator.m_allocRequestsExclusive ^
-                                     m_allocator.m_allocRequestsSuspend ^ m_allocator.m_allocRequestsNoSuspend) ^
+        /* MSG_ALLOCATE */          (m_tmu.m_allocRequestsExclusive ^
+                                     m_tmu.m_allocRequestsSuspend ^ m_tmu.m_allocRequestsNoSuspend) ^
         /* MSG_BALLOCATE */         (m_network.m_link.out ^ DELEGATE) ^
         /* MSG_SET_PROPERTY */      opt(m_network.m_link.out) ^
-        /* MSG_CREATE */            (opt(m_network.m_link.out) ^ (m_allocator.m_alloc * opt(m_network.m_link.out)) ) ^
+        /* MSG_CREATE */            (opt(m_network.m_link.out) ^ (m_tmu.m_alloc * opt(m_network.m_link.out)) ) ^
         /* MSG_DONE */              opt(m_network.m_link.out ^ m_network.m_syncs) ^
         /* MSG_SYNC */              opt(m_network.m_link.out ^ m_network.m_syncs) ^
         /* MSG_DETACH */            opt(m_network.m_link.out) ^
-        /* MSG_GLOBAL */            (m_allocator.m_readyThreadsOther * opt(m_network.m_link.out)) ^
+        /* MSG_GLOBAL */            (m_tmu.m_readyThreadsOther * opt(m_network.m_link.out)) ^
         /* MSG_BREAK */             (opt(m_network.m_link.out ^ m_network.m_syncs) * opt(m_network.m_link.out))
                                           ) * m_network.m_link.in);
 
@@ -432,13 +432,13 @@ void DRISC::Initialize()
     {
         // Asynchronous events from the I/O network can wake up / terminate threads
         // due to a register write.
-        m_io_if->GetReadResponseMultiplexer().p_IncomingReadResponses.SetStorageTraces(opt(m_allocator.m_readyThreadsOther) ^ opt(m_allocator.m_cleanup));
+        m_io_if->GetReadResponseMultiplexer().p_IncomingReadResponses.SetStorageTraces(opt(m_tmu.m_readyThreadsOther) ^ opt(m_tmu.m_cleanup));
         auto& nmux = m_io_if->GetNotificationMultiplexer();
-        nmux.p_IncomingNotifications.SetStorageTraces((opt(m_allocator.m_readyThreadsOther) ^ opt(m_allocator.m_cleanup)) * nmux.GetNotificationTraces() );
+        nmux.p_IncomingNotifications.SetStorageTraces((opt(m_tmu.m_readyThreadsOther) ^ opt(m_tmu.m_cleanup)) * nmux.GetNotificationTraces() );
     }
 }
 
-void DRISC::InitializeRegisters()
+void LEON2MT::InitializeRegisters()
 {
     for (auto& ri : m_reginits)
     {
@@ -491,23 +491,23 @@ void DRISC::InitializeRegisters()
     }
 }
 
-bool DRISC::Boot(MemAddr runAddress, bool legacy)
+bool LEON2MT::Boot(MemAddr runAddress, bool legacy)
 {
     auto placeSize = GetGridSize();
 
     COMMIT {
-        m_allocator.AllocateInitialFamily(runAddress, legacy, placeSize, 0);
+        m_tmu.AllocateInitialFamily(runAddress, legacy, placeSize, 0);
         InitializeRegisters();
     }
     return true;
 }
 
-bool DRISC::IsIdle() const
+bool LEON2MT::IsIdle() const
 {
     return m_threadTable.IsEmpty() && m_familyTable.IsEmpty() && m_icache.IsEmpty();
 }
 
-unsigned int DRISC::GetNumSuspendedRegisters() const
+unsigned int LEON2MT::GetNumSuspendedRegisters() const
 {
     unsigned int num = 0;
     for (size_t i = 0; i < NUM_REG_TYPES; ++i)
@@ -525,7 +525,7 @@ unsigned int DRISC::GetNumSuspendedRegisters() const
     return num;
 }
 
-void DRISC::MapMemory(MemAddr address, MemSize size, ProcessID pid)
+void LEON2MT::MapMemory(MemAddr address, MemSize size, ProcessID pid)
 {
     assert(m_memadmin != NULL);
     m_memadmin->Reserve(address, size, pid,
@@ -533,21 +533,21 @@ void DRISC::MapMemory(MemAddr address, MemSize size, ProcessID pid)
                         IMemory::PERM_DCA_READ | IMemory::PERM_DCA_WRITE);
 }
 
-void DRISC::UnmapMemory(MemAddr address, MemSize size)
+void LEON2MT::UnmapMemory(MemAddr address, MemSize size)
 {
     assert(m_memadmin != NULL);
     // TODO: possibly check the size matches the reserved size
     m_memadmin->Unreserve(address, size);
 }
 
-void DRISC::UnmapMemory(ProcessID pid)
+void LEON2MT::UnmapMemory(ProcessID pid)
 {
     assert(m_memadmin != NULL);
     // TODO: possibly check the size matches the reserved size
     m_memadmin->UnreserveAll(pid);
 }
 
-bool DRISC::CheckPermissions(MemAddr address, MemSize size, int access) const
+bool LEON2MT::CheckPermissions(MemAddr address, MemSize size, int access) const
 {
     assert(m_memadmin != NULL);
     bool mp = m_memadmin->CheckPermissions(address, size, access);
@@ -571,7 +571,7 @@ bool DRISC::CheckPermissions(MemAddr address, MemSize size, int access) const
 //
 // Below are the various functions that construct configuration-dependent values
 //
-MemAddr DRISC::GetTLSAddress(LFID /* fid */, TID tid) const
+MemAddr LEON2MT::GetTLSAddress(LFID /* fid */, TID tid) const
 {
     // 1 bit for TLS/GS
     // P bits for CPU
@@ -587,7 +587,7 @@ MemAddr DRISC::GetTLSAddress(LFID /* fid */, TID tid) const
            (static_cast<MemAddr>(tid)   << Ts);
 }
 
-MemSize DRISC::GetTLSSize() const
+MemSize LEON2MT::GetTLSSize() const
 {
     assert(sizeof(MemAddr) * 8 > m_bits.pid_bits + m_bits.tid_bits + 1);
 
@@ -605,13 +605,13 @@ static Integer GenerateCapability(unsigned int bits)
     return capability & ((1ULL << bits) - 1);
 }
 
-FCapability DRISC::GenerateFamilyCapability() const
+FCapability LEON2MT::GenerateFamilyCapability() const
 {
     assert(sizeof(Integer) * 8 > m_bits.pid_bits + m_bits.fid_bits);
     return GenerateCapability(sizeof(Integer) * 8 - m_bits.pid_bits - m_bits.fid_bits);
 }
 
-Integer DRISC::PackPlace(const PlaceID& place) const
+Integer LEON2MT::PackPlace(const PlaceID& place) const
 {
     assert(IsPowerOfTwo(place.size));
     assert(place.pid % place.size == 0);
@@ -619,7 +619,7 @@ Integer DRISC::PackPlace(const PlaceID& place) const
     return place.capability << (m_bits.pid_bits + 1) | (place.pid << 1) | place.size;
 }
 
-PlaceID DRISC::UnpackPlace(Integer id) const
+PlaceID LEON2MT::UnpackPlace(Integer id) const
 {
     // Unpack the place value: <Capability:N, PID*2|Size:P+1>
     PlaceID place;
@@ -642,7 +642,7 @@ PlaceID DRISC::UnpackPlace(Integer id) const
     return place;
 }
 
-FID DRISC::UnpackFID(Integer id) const
+FID LEON2MT::UnpackFID(Integer id) const
 {
     // Unpack the FID: <Capability:N, LFID:F, PID:P>
     FID fid;
@@ -652,7 +652,7 @@ FID DRISC::UnpackFID(Integer id) const
     return fid;
 }
 
-Integer DRISC::PackFID(const FID& fid) const
+Integer LEON2MT::PackFID(const FID& fid) const
 {
     // Construct the FID: <Capability:N, LFID:F, PID:P>
     return (fid.capability << (m_bits.pid_bits + m_bits.fid_bits)) | (fid.lfid << m_bits.pid_bits) | fid.pid;

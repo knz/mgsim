@@ -1,5 +1,5 @@
 #include "RegisterFile.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 #include <sim/range.h>
 
@@ -11,14 +11,14 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 //
 // RegisterFile implementation
 //
 
-RegisterFile::RegisterFile(const std::string& name, DRISC& parent, Clock& clock)
+RegisterFile::RegisterFile(const std::string& name, LEON2MT& parent, Clock& clock)
   : Object(name, parent),
     ReadWriteStructure<RegAddr>(name, parent, clock),
     Storage("storage", *this, clock),
@@ -163,8 +163,8 @@ bool RegisterFile::WriteRegister(const RegAddr& addr, const RegValue& data, bool
             if (value.m_state == RST_WAITING && value.m_waiting.head != INVALID_TID)
             {
                 // This write caused a reschedule
-                auto& alloc = GetDRISC().GetAllocator();
-                if (!alloc.ActivateThreads(value.m_waiting))
+                auto& tmu = GetLEON2MT().GetTMU();
+                if (!tmu.ActivateThreads(value.m_waiting))
                 {
                     DeadlockWrite("Unable to wake up threads after write of %s: %s becomes %s", addr.str().c_str(), value.str(addr.type).c_str(), data.str(addr.type).c_str());
                     return false;
@@ -270,7 +270,7 @@ bool RegisterFile::WriteFPUResult(RegAddr addr, const RegValue& value)
 void RegisterFile::Cmd_Read(std::ostream& out, const std::vector<std::string>& arguments) const
 {
     // Need to change this if the RF is not directly child of parent
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
 
     // Find the RAUnit in the same processor
     auto& rau = cpu.GetRAUnit();
@@ -308,7 +308,7 @@ void RegisterFile::Cmd_Read(std::ostream& out, const std::vector<std::string>& a
         }
     }
 
-    auto& alloc = GetDRISC().GetAllocator();
+    auto& tmu = GetLEON2MT().GetTMU();
 
     out << "Phy   | Fam | Thread | Name/Alias | State / Value" << endl
         << "------+-----+--------+------------+--------------------------------" << endl;
@@ -327,7 +327,7 @@ void RegisterFile::Cmd_Read(std::ostream& out, const std::vector<std::string>& a
 
         RegClass group = RC_LOCAL;
         size_t   rel   = 0;
-        TID      tid   = (fid != INVALID_LFID) ? alloc.GetRegisterType(fid, addr, &group, &rel) : INVALID_TID;
+        TID      tid   = (fid != INVALID_LFID) ? tmu.GetRegisterType(fid, addr, &group, &rel) : INVALID_TID;
         if (tid != INVALID_TID) {
             out << "T" << setw(4) << setfill('0') << tid;
         } else {

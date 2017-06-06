@@ -8,7 +8,7 @@
   File.
 */
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/symtable.h>
 
 #include <cassert>
@@ -19,7 +19,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 // Convert a RegValue into a PipeValue
@@ -317,7 +317,7 @@ Pipeline::PipeAction Pipeline::ReadStage::OnCycle()
 
         m_RaNotPending = m_input.RaNotPending;
 
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
         m_isMemoryOp = false;
         if (m_input.op1 == S_OP1_MEMORY)
         {
@@ -339,7 +339,7 @@ Pipeline::PipeAction Pipeline::ReadStage::OnCycle()
                 m_RaNotPending = false;
             }
         }
-#endif
+//#endif
     }
 
     //
@@ -439,7 +439,7 @@ Pipeline::PipeAction Pipeline::ReadStage::OnCycle()
             m_output.legacy    = m_input.legacy;
         }
 
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
         // On the Sparc, memory ops take longer because three registers
         // need to be read. We do this by first reading the value to store
         // and then the two address registers in the next cycle.
@@ -462,19 +462,19 @@ Pipeline::PipeAction Pipeline::ReadStage::OnCycle()
                 m_rsv.m_state = RST_INVALID;
             }
         }
-#endif
+//#endif
 
         DebugPipeWrite("F%u/T%u(%llu) %s operands %s %s"
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                        " %s"
-#endif
+//#endif
                        ,
                        (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
                       m_output.Rav.str(m_input.Ra.type).c_str(),
                       m_output.Rbv.str(m_input.Rb.type).c_str()
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
                        , m_output.Rsv.str(m_input.Rs.type).c_str()
-#endif
+//#endif
 
             );
 
@@ -497,15 +497,15 @@ Pipeline::ReadStage::ReadStage(Pipeline& parent,
                                ReadExecuteLatch& output,
                                const vector<BypassInfo>& bypasses)
   : Stage("read", parent),
-    m_regFile(GetDRISC().GetRegisterFile()),
+    m_regFile(GetLEON2MT().GetRegisterFile()),
     m_input(input),
     m_output(output),
     m_bypasses(bypasses),
     m_operand1(), m_operand2(),
     m_RaNotPending(false)
-#if defined(TARGET_MTSPARC)
+//#if defined(TARGET_MTSPARC)
   , m_isMemoryOp(false), m_rsv()
-#endif
+//#endif
 {
     m_operand1.port = &m_regFile.p_pipelineR1;
     m_operand2.port = &m_regFile.p_pipelineR2;

@@ -1,5 +1,5 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 
 #include <sim/breakpoints.h>
 #include <sim/sampling.h>
@@ -13,7 +13,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
@@ -36,7 +36,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
             {
 
                 // Check for breakpoints
-                GetDRISC().GetBreakPointManager().Check(BreakPointManager::MEMWRITE, m_input.address, *this);
+                GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::MEMWRITE, m_input.address, *this);
 
                 // Serialize and store data
                 char data[MAX_MEMORY_OPERATION_SIZE];
@@ -52,7 +52,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
 
                 SerializeRegister(m_input.Rc.type, value, data, (size_t)m_input.size);
 
-                auto& mmio = GetDRISC().GetIOMatchUnit();
+                auto& mmio = GetLEON2MT().GetIOMatchUnit();
                 if (mmio.IsRegisteredWriteAddress(m_input.address, m_input.size))
                 {
                     result = mmio.Write(m_input.address, data, m_input.size, m_input.fid, m_input.tid);
@@ -83,7 +83,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                         return PIPE_STALL;
                     }
 
-                    if (!m_allocator.IncreaseThreadDependency(m_input.tid, THREADDEP_OUTSTANDING_WRITES))
+                    if (!m_tmu.IncreaseThreadDependency(m_input.tid, THREADDEP_OUTSTANDING_WRITES))
                     {
                         DeadlockWrite("F%u/T%u(%llu) %s unable to increase OUTSTANDING_WRITES",
                                       (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index,
@@ -121,7 +121,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
         else if (m_input.Rc.valid())
         {
             // Check for breakpoints
-            GetDRISC().GetBreakPointManager().Check(BreakPointManager::MEMREAD, m_input.address, *this);
+            GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::MEMREAD, m_input.address, *this);
 
             if (m_input.address >= 4 && m_input.address < 8)
             {
@@ -145,7 +145,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                     char data[MAX_MEMORY_OPERATION_SIZE];
                     RegAddr reg = m_input.Rc;
 
-                    auto& mmio = GetDRISC().GetIOMatchUnit();
+                    auto& mmio = GetLEON2MT().GetIOMatchUnit();
                     if (mmio.IsRegisteredReadAddress(m_input.address, m_input.size))
                     {
                         result = mmio.Read(m_input.address, data, m_input.size, m_input.fid, m_input.tid, m_input.Rc);
@@ -170,7 +170,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                             rcv.m_memory.sign_extend = m_input.sign_extend;
 
                             // Increase the outstanding memory count for the family
-                            if (!m_allocator.OnMemoryRead(m_input.fid))
+                            if (!m_tmu.OnMemoryRead(m_input.fid))
                             {
                                 return PIPE_STALL;
                             }
@@ -215,7 +215,7 @@ Pipeline::PipeAction Pipeline::MemoryStage::OnCycle()
                             rcv.m_memory.sign_extend = m_input.sign_extend;
 
                             // Increase the outstanding memory count for the family
-                            if (!m_allocator.OnMemoryRead(m_input.fid))
+                            if (!m_tmu.OnMemoryRead(m_input.fid))
                             {
                                 return PIPE_STALL;
                             }
@@ -304,8 +304,8 @@ Pipeline::MemoryStage::MemoryStage(Pipeline& parent,
     : Stage("memory", parent),
       m_input(input),
       m_output(output),
-      m_allocator(GetDRISC().GetAllocator()),
-      m_dcache(GetDRISC().GetDCache()),
+      m_tmu(GetLEON2MT().GetTMU()),
+      m_dcache(GetLEON2MT().GetDCache()),
       InitSampleVariable(loads, SVC_CUMULATIVE),
       InitSampleVariable(stores, SVC_CUMULATIVE),
       InitSampleVariable(load_bytes, SVC_CUMULATIVE),

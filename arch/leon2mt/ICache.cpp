@@ -1,5 +1,5 @@
 #include "ICache.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/log2.h>
 #include <sim/config.h>
 #include <sim/sampling.h>
@@ -12,10 +12,10 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-ICache::ICache(const std::string& name, DRISC& parent, Clock& clock)
+ICache::ICache(const std::string& name, LEON2MT& parent, Clock& clock)
 :   Object(name, parent),
     m_memory(NULL),
     m_selector(IBankSelector::makeSelector(*this, GetConf("BankSelector", string), GetConf("NumSets", size_t))),
@@ -118,8 +118,8 @@ bool ICache::IsEmpty() const
 //
 // Finds the line for the specified address. Returns:
 // SUCCESS - Line found (hit)
-// DELAYED - Line not found (miss), but empty one allocated
-// FAILED  - Line not found (miss), no empty lines to allocate
+// DELAYED - Line not found (miss), but empty one tmuated
+// FAILED  - Line not found (miss), no empty lines to tmuate
 //
 Result ICache::FindLine(MemAddr address, Line* &line, bool check_only)
 {
@@ -153,12 +153,12 @@ Result ICache::FindLine(MemAddr address, Line* &line, bool check_only)
         }
     }
 
-    // The line could not be found, allocate the empty line or replace an existing line
+    // The line could not be found, tmuate the empty line or replace an existing line
     line = (empty != NULL) ? empty : replace;
     if (line == NULL)
     {
         // No available line
-        DeadlockWrite("Unable to allocate a cache-line for the request to %#016llx (set %u)",
+        DeadlockWrite("Unable to tmuate a cache-line for the request to %#016llx (set %u)",
             (unsigned long long)address, (unsigned)(set / m_assoc));
         return FAILED;
     }
@@ -243,7 +243,7 @@ Result ICache::Fetch(MemAddr address, MemSize size, TID& tid, CID& cid)
 Result ICache::Fetch(MemAddr address, MemSize size, TID* tid, CID* cid)
 {
     // Check that we're fetching executable memory
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     if (!cpu.CheckPermissions(address, size, IMemory::PERM_EXECUTE))
     {
         throw exceptf<SecurityException>(*this, "Fetch (%#016llx, %zd): Attempting to execute from non-executable memory",
@@ -343,7 +343,7 @@ Result ICache::Fetch(MemAddr address, MemSize size, TID* tid, CID* cid)
     }
     else
     {
-        // Cache miss; a line has been allocated, fetch the data
+        // Cache miss; a line has been tmuated, fetch the data
         if (!m_outgoing.Push(address))
         {
             DeadlockWrite("Unable to put request for I-Cache line into outgoing buffer");
@@ -486,11 +486,11 @@ Result ICache::DoIncoming()
     Line& line = m_lines[cid];
     COMMIT{ line.state = LINE_FULL; }
 
-    auto& alloc = GetDRISC().GetAllocator();
+    auto& tmu = GetLEON2MT().GetTMU();
     if (line.creation)
     {
         // Resume family creation
-        if (!alloc.OnICachelineLoaded(cid))
+        if (!tmu.OnICachelineLoaded(cid))
         {
             DeadlockWrite("Unable to resume family creation for C%u", (unsigned)cid);
             return FAILED;
@@ -501,7 +501,7 @@ Result ICache::DoIncoming()
     if (line.waiting.head != INVALID_TID)
     {
         // Reschedule the line's waiting list
-        if (!alloc.QueueActiveThreads(line.waiting))
+        if (!tmu.QueueActiveThreads(line.waiting))
         {
             DeadlockWrite("Unable to queue active threads T%u through T%u for C%u",
                 (unsigned)line.waiting.head, (unsigned)line.waiting.tail, (unsigned)cid);

@@ -7,7 +7,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class DebugChannel : public MMIOComponent

@@ -1,5 +1,5 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <sim/config.h>
 #include <sim/breakpoints.h>
 
@@ -8,7 +8,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 void Pipeline::FetchStage::Clear(TID tid)
@@ -27,7 +27,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         // We need to switch to a new thread
 
         // Get the thread on the front of the active queue
-        TID tid = m_allocator.PopActiveThread();
+        TID tid = m_tmu.PopActiveThread();
         if (tid == INVALID_TID)
         {
             // Nothing to do....
@@ -43,7 +43,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         {
             // We need to check for breakpoints on the control
             // word here.
-            GetDRISC().GetBreakPointManager().Check(BreakPointManager::FETCH, pc, *this);
+            GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::FETCH, pc, *this);
 
             // Skip the control word
             pc += sizeof(Instruction);
@@ -55,7 +55,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         {
             DeadlockWrite("F%u/T%u(%llu) %s fetch stall due to I-cache miss",
                           (unsigned)thread.family, (unsigned)tid, (unsigned long long)thread.index,
-                          GetDRISC().GetSymbolTable()[pc].c_str());
+                          GetLEON2MT().GetSymbolTable()[pc].c_str());
             return PIPE_STALL;
         }
 
@@ -80,7 +80,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
 
         DebugSimWrite("F%u/T%u(%llu) %s switched in",
                       (unsigned)thread.family, (unsigned)tid, (unsigned long long)thread.index,
-                      GetDRISC().GetSymbolTable()[pc].c_str());
+                      GetLEON2MT().GetSymbolTable()[pc].c_str());
     }
 
     COMMIT
@@ -107,7 +107,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         // - the thread was popped *in this cycle*, in which case Empty() is *not yet* true, because the update to
         // the storage is only processed at the start of the next cycle. So we also check if there is only 1 thread (Singular)
         // and the current thread is the only thread at the front.
-        auto& activeThreads = m_allocator.m_activeThreads;
+        auto& activeThreads = m_tmu.m_activeThreads;
         const bool lastThread = activeThreads.Empty() || (activeThreads.Singular() && activeThreads.Front() == m_output.tid);
 
         // 3) terminated or i-cache boundary
@@ -124,7 +124,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         m_output.pc_dbg       = pc;
         if (GetKernel()->GetDebugMode() & Kernel::DEBUG_CPU_MASK)
         {
-            m_output.pc_sym = GetDRISC().GetSymbolTable()[m_output.pc].c_str();
+            m_output.pc_sym = GetLEON2MT().GetSymbolTable()[m_output.pc].c_str();
         }
         else
         {
@@ -132,7 +132,7 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
         }
 
         // Check for breakpoints
-        GetDRISC().GetBreakPointManager().Check(BreakPointManager::FETCH, pc, *this);
+        GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::FETCH, pc, *this);
 
         // Update the PC and switched state
         m_pc       = next_pc;
@@ -150,10 +150,10 @@ Pipeline::PipeAction Pipeline::FetchStage::OnCycle()
 Pipeline::FetchStage::FetchStage(Pipeline& parent, FetchDecodeLatch& output)
   : Stage("fetch", parent),
     m_output(output),
-    m_allocator(GetDRISC().GetAllocator()),
-    m_familyTable(GetDRISC().GetFamilyTable()),
-    m_threadTable(GetDRISC().GetThreadTable()),
-    m_icache(GetDRISC().GetICache()),
+    m_tmu(GetLEON2MT().GetTMU()),
+    m_familyTable(GetLEON2MT().GetFamilyTable()),
+    m_threadTable(GetLEON2MT().GetThreadTable()),
+    m_icache(GetLEON2MT().GetICache()),
     m_controlBlockSize(GetTopConf("ControlBlockSize", size_t)),
     m_buffer(0),
     m_switched(true),

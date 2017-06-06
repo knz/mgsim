@@ -7,19 +7,19 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-class PerfCounters : public drisc::MMIOComponent
+class PerfCounters : public leon2mt::MMIOComponent
 {
     class Helpers;
-    friend class Simulator::DRISC;
+    friend class Simulator::LEON2MT;
 
-    std::vector<Integer (*)(DRISC&, LFID)> m_counters;
+    std::vector<Integer (*)(LEON2MT&, LFID)> m_counters;
     DefineSampleVariable(uint64_t, nCycleSampleOps); // nr of samplings of the cycle counter by program
     DefineSampleVariable(uint64_t, nOtherSampleOps); // nr of samplings of other counters
 
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 public:
 
     size_t GetSize() const;
@@ -27,7 +27,7 @@ public:
     Result Read (MemAddr address, void* data, MemSize size, LFID fid, TID tid, const RegAddr& writeback);
     Result Write(MemAddr address, const void* data, MemSize size, LFID fid, TID tid);
 
-    PerfCounters(DRISC& parent);
+    PerfCounters(LEON2MT& parent);
 
     ~PerfCounters() {}
 };

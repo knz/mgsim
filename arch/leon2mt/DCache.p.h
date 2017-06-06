@@ -6,16 +6,16 @@
 #include <sim/inspect.h>
 #include <sim/buffer.h>
 #include <arch/Memory.h>
-#include <arch/drisc/forward.h>
+#include <arch/leon2mt/forward.h>
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class DCache : public Object, public IMemoryCallback, public Inspect::Interface<Inspect::Read>
 {
-    friend class Simulator::DRISC;
+    friend class Simulator::LEON2MT;
 
 public:
     /// The state of a cache-line
@@ -125,10 +125,10 @@ private:
     Result DoWriteResponses();
     Result DoOutgoingRequests();
 
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
 public:
-    DCache(const std::string& name, DRISC& parent, Clock& clock);
+    DCache(const std::string& name, LEON2MT& parent, Clock& clock);
     DCache(const DCache&) = delete;
     DCache& operator=(const DCache&) = delete;
     ~DCache();

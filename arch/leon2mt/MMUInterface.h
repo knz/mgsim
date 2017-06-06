@@ -6,7 +6,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 class MMUInterface : public MMIOComponent
@@ -20,7 +20,7 @@ public:
     Result Write(MemAddr address, const void* data, MemSize size, LFID fid, TID tid);
 
 private:
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
 };
 

@@ -1,5 +1,5 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/FPU.h>
 #include <arch/symtable.h>
 #include <programs/mgsim.h>
@@ -12,12 +12,12 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
-static const int RA_SHIFT       = 14;
-static const int RB_SHIFT       = 0;
-static const int RC_SHIFT       = 25;
+static const int RS1_SHIFT       = 14;
+static const int RS2_SHIFT       = 0;
+static const int RD_SHIFT       = 25;
 static const int REG_MASK       = 0x1F;
 static const int OP1_SHIFT      = 30;
 static const int OP1_MASK       = 0x3;
@@ -32,18 +32,15 @@ static const int ASI_MASK       = 0xFF;
 static const int UTASI_SHIFT    = 5;
 static const int UTASI_MASK     = 0xF;
 static const int BIT_IMMEDIATE  = (1 << 13);
-static const int IMM30_SHIFT    = 0;
-static const int IMM30_SIZE     = 30;
-static const int IMM30_MASK     = (1 << IMM30_SIZE) - 1;
+static const int DISP30_SHIFT    = 0;
+static const int DISP30_SIZE     = 30;
+static const int DISP30_MASK     = (1 << DISP30_SIZE) - 1;
 static const int IMM22_SHIFT    = 0;
 static const int IMM22_SIZE     = 22;
 static const int IMM22_MASK     = (1 << IMM22_SIZE) - 1;
 static const int IMM13_SHIFT    = 0;
 static const int IMM13_SIZE     = 13;
 static const int IMM13_MASK     = (1 << IMM13_SIZE) - 1;
-static const int IMM9_SHIFT     = 0;
-static const int IMM9_SIZE      = 9;
-static const int IMM9_MASK      = (1 << IMM9_SIZE) - 1;
 static const int OPF_SHIFT      = 5;
 static const int OPF_MASK       = (1 << 9) - 1;
 static const int OPT_SHIFT      = 9;
@@ -125,9 +122,9 @@ static int32_t SEXT(uint32_t value, int bits)
 void Pipeline::DecodeStage::DecodeInstruction(const Instruction& instr)
 {
     m_output.op1 = (uint8_t)((instr >> OP1_SHIFT) & OP1_MASK);
-    RegIndex Ra  = (instr >> RA_SHIFT) & REG_MASK;
-    RegIndex Rb  = (instr >> RB_SHIFT) & REG_MASK;
-    RegIndex Rc  = (instr >> RC_SHIFT) & REG_MASK;
+    RegIndex Ra  = (instr >> RS1_SHIFT) & REG_MASK;
+    RegIndex Rb  = (instr >> RS2_SHIFT) & REG_MASK;
+    RegIndex Rc  = (instr >> RD_SHIFT) & REG_MASK;
 
     m_output.Ra = INVALID_REG;
     m_output.Rb = INVALID_REG;
@@ -156,7 +153,7 @@ void Pipeline::DecodeStage::DecodeInstruction(const Instruction& instr)
         break;
 
     case S_OP1_CALL:
-        m_output.displacement = SEXT((instr >> IMM30_SHIFT) & IMM30_MASK, IMM30_SIZE);
+        m_output.displacement = SEXT((instr >> DISP30_SHIFT) & DISP30_MASK, DISP30_SIZE);
         m_output.Rc = MAKE_REGADDR(RT_INTEGER, 15);
         break;
 
@@ -228,7 +225,7 @@ void Pipeline::DecodeStage::DecodeInstruction(const Instruction& instr)
         }
         break;
 
-    case S_OP1_OTHER:
+    case S_OP1_ALU:
         m_output.op3 = (uint8_t)((instr >> OP3_SHIFT) & OP3_MASK);
         m_output.asi = (uint8_t)((instr >> ASI_SHIFT) & ASI_MASK);
         switch (m_output.op3)
@@ -534,7 +531,7 @@ uint32_t Pipeline::ExecuteStage::ExecOtherInteger(int opcode, uint32_t Rav, uint
 
 Pipeline::PipeAction Pipeline::ExecuteStage::ExecReadASR19(uint8_t func)
 {
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     switch (func)
     {
         case S_OPT2_LDBP:
@@ -578,7 +575,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecReadASR20(uint8_t func)
     assert(m_input.Rbv.m_size == sizeof(Integer));
     Integer Rav = m_input.Rav.m_integer.get(m_input.Rav.m_size);
     Integer Rbv = m_input.Rbv.m_integer.get(m_input.Rbv.m_size);
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
 
     switch (func)
     {
@@ -676,7 +673,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecWriteASR20(uint8_t func)
     assert(m_input.Rbv.m_size == sizeof(Integer));
     Integer Rav = m_input.Rav.m_integer.get(m_input.Rav.m_size);
     Integer Rbv = m_input.Rbv.m_integer.get(m_input.Rbv.m_size);
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
 
     switch (func)
     {
@@ -725,7 +722,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecWriteASR20(uint8_t func)
 
 Pipeline::PipeAction Pipeline::ExecuteStage::ExecuteInstruction()
 {
-    auto& cpu = GetDRISC();
+    auto& cpu = GetLEON2MT();
     switch (m_input.op1)
     {
     case S_OP1_CALL:
@@ -752,18 +749,18 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecuteInstruction()
             }
             break;
 
-        case S_OP2_BRANCH_INT: // Bicc
-        case S_OP2_BRANCH_FLT: // FBfcc
-        case S_OP2_BRANCH_COP: // CBccc
+        case S_OP2_BICC: // Bicc
+        case S_OP2_FBFCC: // FBfcc
+        case S_OP2_CBCCC: // CBccc
         {
             auto& thread = m_threadTable[m_input.tid];
             bool taken;
             switch (m_input.op2)
             {
                 default:
-                case S_OP2_BRANCH_COP: taken = false; break; // We don't have a co-processor
-                case S_OP2_BRANCH_INT: taken = BranchTakenInt(m_input.function, thread.psr); break;
-                case S_OP2_BRANCH_FLT: taken = BranchTakenFlt(m_input.function, thread.fsr); break;
+                case S_OP2_CBCCC: taken = false; break; // We don't have a co-processor
+                case S_OP2_BICC: taken = BranchTakenInt(m_input.function, thread.psr); break;
+                case S_OP2_FBFCC: taken = BranchTakenFlt(m_input.function, thread.fsr); break;
             }
 
             if (taken)
@@ -840,7 +837,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecuteInstruction()
         break;
     }
 
-    case S_OP1_OTHER:
+    case S_OP1_ALU:
     {
         auto& thread = m_threadTable[m_input.tid];
 

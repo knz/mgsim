@@ -1,5 +1,5 @@
 #include "Pipeline.h"
-#include "DRISC.h"
+#include "LEON2MT.h"
 #include <arch/symtable.h>
 #include <sim/sampling.h>
 #include <sim/log2.h>
@@ -19,7 +19,7 @@ using namespace std;
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 /*static*/
@@ -103,7 +103,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::OnCycle()
     }
 
     // Check for breakpoints
-    GetDRISC().GetBreakPointManager().Check(BreakPointManager::EXEC, m_input.pc, *this);
+    GetLEON2MT().GetBreakPointManager().Check(BreakPointManager::EXEC, m_input.pc, *this);
 
     PipeAction action = ExecuteInstruction();
     if (action != PIPE_STALL)
@@ -138,10 +138,10 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecBundle(MemAddr addr, bool indir
 {
     if (indirect)
     {
-        addr += GetDRISC().ReadASR(ASR_SYSCALL_BASE);
+        addr += GetLEON2MT().ReadASR(ASR_SYSCALL_BASE);
     }
 
-    if (!m_allocator.QueueBundle(addr, value, reg))
+    if (!m_tmu.QueueBundle(addr, value, reg))
     {
         return PIPE_STALL;
     }
@@ -160,7 +160,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecAllocate(PlaceID place, RegInde
     {
         // Inherit the parent's place
         place.size = m_input.placeSize;
-        place.pid  = (GetDRISC().GetPID() / place.size) * place.size;
+        place.pid  = (GetLEON2MT().GetPID() / place.size) * place.size;
         place.capability = 0x1337; // also later: copy the place capability from the parent.
 
         DebugSimWrite("F%u/T%u(%llu) %s adjusted default place -> CPU%u/%u cap 0x%lx",
@@ -172,7 +172,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecAllocate(PlaceID place, RegInde
         if (place.pid == 0)
         {
             // Local place
-            place.pid  = GetDRISC().GetPID();
+            place.pid  = GetLEON2MT().GetPID();
 
             DebugSimWrite("F%u/T%u(%llu) %s adjusted local place -> CPU%u/1",
                           (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
@@ -190,7 +190,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecAllocate(PlaceID place, RegInde
     assert((place.pid % place.size) == 0);
 
     // Verify processor ID
-    if (place.pid >= GetDRISC().GetGridSize())
+    if (place.pid >= GetLEON2MT().GetGridSize())
     {
         throw SimulationException("Attempting to delegate to a non-existing core");
     }
@@ -211,7 +211,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecAllocate(PlaceID place, RegInde
     {
         m_output.Rrc.type = RemoteMessage::MSG_ALLOCATE;
         m_output.Rrc.allocate.place          = place;
-        m_output.Rrc.allocate.completion_pid = GetDRISC().GetPID();
+        m_output.Rrc.allocate.completion_pid = GetLEON2MT().GetPID();
         m_output.Rrc.allocate.completion_reg = reg;
         m_output.Rrc.allocate.type           = type;
         m_output.Rrc.allocate.suspend        = suspend;
@@ -262,7 +262,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecCreate(const FID& fid, MemAddr 
         m_output.Rrc.create.fid            = fid;
         m_output.Rrc.create.address        = address;
         m_output.Rrc.create.completion_reg = completion;
-        m_output.Rrc.create.completion_pid = GetDRISC().GetPID();
+        m_output.Rrc.create.completion_pid = GetLEON2MT().GetPID();
         m_output.Rrc.create.bundle         = false;
 
         m_output.Rcv = MAKE_PENDING_PIPEVALUE(m_input.RcSize);
@@ -271,7 +271,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecCreate(const FID& fid, MemAddr 
     DebugFlowWrite("F%u/T%u(%llu) %s create CPU%u/F%u %s",
                    (unsigned)m_input.fid, (unsigned)m_input.tid, (unsigned long long)m_input.logical_index, m_input.pc_sym,
                    (unsigned)fid.pid, (unsigned) fid.lfid,
-                   GetDRISC().GetSymbolTable()[address].c_str());
+                   GetLEON2MT().GetSymbolTable()[address].c_str());
 
     return PIPE_CONTINUE;
 }
@@ -373,7 +373,7 @@ Pipeline::PipeAction Pipeline::ExecuteStage::ExecBreak()
     {
 
         m_output.Rrc.type    = RemoteMessage::MSG_BREAK;
-        m_output.Rrc.brk.pid = GetDRISC().GetPID();
+        m_output.Rrc.brk.pid = GetLEON2MT().GetPID();
         m_output.Rrc.brk.fid = m_input.fid;
     }
     return PIPE_CONTINUE;
@@ -483,7 +483,7 @@ void Pipeline::ExecuteStage::ExecMemoryControl(Integer value, int command, int f
     unsigned l = flags & 0x7;
     MemSize req_size = 1 << (l + 12);
 
-    DRISC& cpu = GetDRISC();
+    LEON2MT& cpu = GetLEON2MT();
 
     switch(command)
     {
@@ -568,9 +568,9 @@ Pipeline::ExecuteStage::ExecuteStage(Pipeline& parent,
   : Stage("execute", parent),
     m_input(input),
     m_output(output),
-    m_allocator(GetDRISC().GetAllocator()),
-    m_familyTable(GetDRISC().GetFamilyTable()),
-    m_threadTable(GetDRISC().GetThreadTable()),
+    m_tmu(GetLEON2MT().GetTMU()),
+    m_familyTable(GetLEON2MT().GetFamilyTable()),
+    m_threadTable(GetLEON2MT().GetThreadTable()),
     m_fpu(NULL),
     m_fpuSource(0),
     InitSampleVariable(flop, SVC_CUMULATIVE),

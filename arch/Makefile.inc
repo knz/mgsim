@@ -124,15 +124,81 @@ PROCESSOR_SRC = \
 	arch/drisc/ThreadTable.h \
 	arch/drisc/WritebackStage.cpp \
 	arch/drisc/PerfCounters.h \
-	arch/drisc/PerfCounters.cpp
+	arch/drisc/PerfCounters.cpp \
+        arch/leon2mt/ActionInterface.cpp \
+        arch/leon2mt/ActionInterface.h \
+	arch/leon2mt/TMU.cpp \
+	arch/leon2mt/TMU.p.h \
+	arch/leon2mt/TMU.h \
+	arch/leon2mt/AncillaryRegisterFile.cpp \
+	arch/leon2mt/AncillaryRegisterFile.h \
+	arch/leon2mt/DCache.cpp \
+	arch/leon2mt/DCache.h \
+	arch/leon2mt/DebugChannel.h \
+	arch/leon2mt/DebugChannel.cpp \
+	arch/leon2mt/DecodeStage.cpp \
+	arch/leon2mt/DummyStage.cpp \
+	arch/leon2mt/ExecuteStage.cpp \
+	arch/leon2mt/FamilyTable.cpp \
+	arch/leon2mt/FamilyTable.h \
+	arch/leon2mt/FetchStage.cpp \
+        arch/leon2mt/forward.h \
+	arch/leon2mt/ICache.cpp \
+	arch/leon2mt/ICache.h \
+	arch/leon2mt/IOResponseMultiplexer.p.h \
+	arch/leon2mt/IOResponseMultiplexer.h \
+	arch/leon2mt/IOResponseMultiplexer.cpp \
+	arch/leon2mt/IONotificationMultiplexer.h \
+	arch/leon2mt/IONotificationMultiplexer.cpp \
+	arch/leon2mt/IOBusInterface.p.h \
+	arch/leon2mt/IOBusInterface.h \
+	arch/leon2mt/IOBusInterface.cpp \
+	arch/leon2mt/IOInterface.h \
+	arch/leon2mt/IOInterface.cpp \
+	arch/leon2mt/IOMatchUnit.h \
+	arch/leon2mt/IOMatchUnit.cpp \
+        arch/leon2mt/IODirectCacheAccess.p.h \
+	arch/leon2mt/IODirectCacheAccess.h \
+        arch/leon2mt/IODirectCacheAccess.cpp \
+        arch/leon2mt/ISA.cpp \
+	arch/leon2mt/ISA.leon2mt.h \
+	arch/leon2mt/ISA.leon2mt.h \
+	arch/leon2mt/MemoryStage.cpp \
+	arch/leon2mt/MMUInterface.cpp \
+	arch/leon2mt/MMUInterface.h \
+	arch/leon2mt/Network.cpp \
+	arch/leon2mt/Network.p.h \
+	arch/leon2mt/Network.h \
+	arch/leon2mt/Pipeline.cpp \
+	arch/leon2mt/Pipeline.h \
+	arch/leon2mt/LEON2MT.cpp \
+	arch/leon2mt/LEON2MT.h \
+	arch/leon2mt/RAUnit.cpp \
+	arch/leon2mt/RAUnit.h \
+	arch/leon2mt/ReadStage.cpp \
+	arch/leon2mt/RegisterFile.cpp \
+	arch/leon2mt/RegisterFile.h \
+	arch/leon2mt/ThreadTable.cpp \
+	arch/leon2mt/ThreadTable.h \
+	arch/leon2mt/WritebackStage.cpp \
+	arch/leon2mt/PerfCounters.h \
+	arch/leon2mt/PerfCounters.cpp
+        
 BUILT_SOURCES += \
 	arch/drisc/Allocator.h \
 	arch/drisc/Network.h \
 	arch/drisc/IOBusInterface.h \
 	arch/drisc/IODirectCacheAccess.h \
 	arch/drisc/IOResponseMultiplexer.h \
-	arch/drisc/DCache.h
+	arch/drisc/DCache.h \
+	arch/leon2mt/TMU.h \
+	arch/leon2mt/Network.h \
+	arch/leon2mt/IOBusInterface.h \
+	arch/leon2mt/IODirectCacheAccess.h \
+	arch/leon2mt/IOResponseMultiplexer.h \
+	arch/leon2mt/DCache.h
 
+        
 COMMON_SRC = \
     arch/area.cpp \
 	arch/Archures.h \
@@ -199,6 +265,7 @@ EXTRA_DIST += \
 	arch/drisc/ISA.mips.cpp \
         arch/drisc/ISA.or1k.cpp \
 	arch/drisc/ISA.mtalpha.cpp \
-	arch/drisc/ISA.mtsparc.cpp
+	arch/drisc/ISA.mtsparc.cpp \
+        arch/leon2mt/ISA.leon2mt.cpp
 
 ARCH_SOURCES = $(COMMON_SRC) $(PROCESSOR_SRC) $(MEMORY_SRC) $(DEVICE_SRC)

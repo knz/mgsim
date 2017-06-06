@@ -5,7 +5,7 @@
 namespace Simulator
 {
 
-namespace drisc
+namespace leon2mt
 {
 
 void MMIOComponent::Connect(IOMatchUnit& mmio, IOMatchUnit::AccessMode mode)

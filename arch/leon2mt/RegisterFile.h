@@ -12,7 +12,7 @@
 
 namespace Simulator
 {
-namespace drisc
+namespace leon2mt
 {
 
 /*
@@ -37,7 +37,7 @@ public:
      * @param[in] clock reference to the clock used to control updates.
      * @param[in] config reference to the configuration data.
      */
-    RegisterFile(const std::string& name, DRISC& parent, Clock& clock);
+    RegisterFile(const std::string& name, LEON2MT& parent, Clock& clock);
     ~RegisterFile();
 
     /**
@@ -100,7 +100,7 @@ public:
     void Cmd_Read(std::ostream& out, const std::vector<std::string>& arguments) const override;
 
     Object* GetParent() const { return ReadWriteStructure<RegAddr>::GetParent(); }
-    Object& GetDRISCParent() const { return *GetParent(); }
+    Object& GetLEON2MTParent() const { return *GetParent(); }
 
     DedicatedReadPort            p_pipelineR1; ///< Read port #1 for the pipeline
     DedicatedReadPort            p_pipelineR2; ///< Read port #2 for the pipeline
