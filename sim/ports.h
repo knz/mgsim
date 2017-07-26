@@ -83,7 +83,7 @@ namespace Simulator
         ProcessList    m_requests;
 
         // The last cycle counter of a request.
-        CycleNo        m_lastrequest;
+	std::vector<CycleNo>        m_lastrequest;
 
     public:
         // Register a process that may access the port.

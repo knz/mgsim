@@ -22,11 +22,8 @@ namespace Simulator
         : ArbitratedPort(k, name),
           m_processes(),
           m_requests(),
-          m_lastrequest((CycleNo)-1)
+          m_lastrequest()
     {
-        k.GetVariableRegistry().RegisterVariable(m_lastrequest,
-                                                 GetName() + ":lastrequest",
-                                                 SVC_LEVEL);
     }
 
     void SimpleArbitratedPort::AddProcess(const Process& process)
@@ -39,20 +36,22 @@ namespace Simulator
 
     void SimpleArbitratedPort::AddRequest(const Process& process, CycleNo c)
     {
-        if (find(m_requests.begin(),
-                 m_requests.end(),
-                 &process) != m_requests.end())
+	auto p = find(m_requests.begin(),
+		      m_requests.end(),
+		      &process);
+        if (p != m_requests.end())
         {
             // A process can request more than once in an arbitrator cycle
             // if the requester is in a higher frequency domain than the
             // arbitrator.
             // However the same process cannot request more than once
             // in the same cycle.
-            assert(c != m_lastrequest);
+	    auto lastreq = m_lastrequest[p - m_requests.begin()];
+            assert(c != lastreq);
             return;
         }
         m_requests.push_back(&process);
-        m_lastrequest = c;
+        m_lastrequest.push_back(c);
     }
 
     PriorityArbitratedPort::PriorityArbitratedPort(Kernel& k,
@@ -89,6 +88,7 @@ namespace Simulator
         }
         assert(GetSelectedProcess() != NULL);
         m_requests.clear();
+	m_lastrequest.clear();
         MarkBusy();
     }
 
@@ -145,6 +145,7 @@ namespace Simulator
         }
         assert(GetSelectedProcess() != NULL);
         m_requests.clear();
+	m_lastrequest.clear();
         MarkBusy();
     }
 
